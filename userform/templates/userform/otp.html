@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác thực OTP</title>
+    {% load bootstrap5 %}
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    <style>
+        body { background-color: #f0f8ff; }  /* Màu nền giống form chính */
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="text-primary">Xác thực mã OTP</h2>
+        <p>Mã OTP đã được gửi đến số điện thoại/email của bạn. Vui lòng nhập để xác nhận.</p>
+        <form method="post">
+            {% csrf_token %}
+            {% bootstrap_form form %}
+            <button type="submit" class="btn btn-primary">Xác nhận OTP</button>
+        </form>
+    </div>
+</body>
+</html>

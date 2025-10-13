@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký FlexiMoney</title>
+    {% load static django_bootstrap5  %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+
+    <link rel="stylesheet" href="{% static 'css/customer.css' %}">
+    <script defer src="{% static 'js/customer.js' %}"></script>
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="app-card">
+            <div class="banner" style="background-image:url('https://images.unsplash.com/photo-1621592483838-9d0c2b9b6e84?q=80&w=1600&auto=format&fit=crop');"></div>
+
+            <h2 class="card-title">Đăng ký “FlexiMoney – Tiền Mặt Linh Hoạt” tại FEC</h2>
+
+            {% if messages %}
+                <div class="mb-3">
+                    {% for m in messages %}
+                        <div class="alert alert-{{ m.tags|default:'info' }} mb-2">{{ m }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+            {% csrf_token %}
+
+            <!-- Nơi đang sống (dropdown có placeholder mờ) -->
+            <div class="mb-3">
+                <label class="form-label">{{ form.permanent_address.label }}</label>
+                {{ form.permanent_address }}
+                {% if form.permanent_address.errors %}
+                    <div class="text-danger small">{{ form.permanent_address.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Họ và tên -->
+            {% bootstrap_field form.full_name show_label=True %}
+            {% if form.full_name.errors %}<div class="text-danger small">{{ form.full_name.errors }}</div>{% endif %}
+
+            <!-- Giới tính (radio, không có “-----”) -->
+            <div class="mb-3">
+                <label class="form-label d-block">{{ form.gender.label }}</label>
+                <div class="radio-group">
+                {% for r in form.gender %}
+                    <div class="form-check">
+                        {{ r.tag }}
+                        <label class="form-check-label ms-1">{{ r.choice_label }}</label>
+                    </div>
+                {% endfor %}
+                </div>
+                {% if form.gender.errors %}<div class="text-danger small">{{ form.gender.errors }}</div>{% endif %}
+            </div>
+
+            <!-- SĐT -->
+            {% bootstrap_field form.phone_number show_label=True %}
+            {% if form.phone_number.errors %}<div class="text-danger small">{{ form.phone_number.errors }}</div>{% endif %}
+
+            <!-- Ngày sinh -->
+            {% bootstrap_field form.birth_date show_label=True %}
+            {% if form.birth_date.errors %}<div class="text-danger small">{{ form.birth_date.errors }}</div>{% endif %}
+
+            <!-- CCCD/CMND -->
+            {% bootstrap_field form.id_card show_label=True %}
+            {% if form.id_card.errors %}<div class="text-danger small">{{ form.id_card.errors }}</div>{% endif %}
+
+            <!-- Trạng thái công việc (dropdown có placeholder mờ) -->
+            <div class="mb-3">
+                <label class="form-label">{{ form.work_status.label }}</label>
+                {{ form.work_status }}
+                {% if form.work_status.errors %}
+                    <div class="text-danger small">{{ form.work_status.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Chứng từ có thể cung cấp (dropdown có placeholder mờ) -->
+            <div class="mb-3">
+                <label class="form-label">{{ form.doc_provided.label }}</label>
+                {{ form.doc_provided }}
+                {% if form.doc_provided.errors %}
+                    <div class="text-danger small">{{ form.doc_provided.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- ====== Ba ô tiền với nút – / + ====== -->
+            <!-- Số tiền đăng ký -->
+            <div class="mb-3">
+            <label class="form-label">Số tiền đăng ký *</label>
+            <div class="input-group money-group">
+                <button class="btn btn-outline-secondary money-dec" type="button" data-target="#loan_amount">−</button>
+                <input id="loan_amount" name="loan_amount" type="text"
+                    class="form-control money-input"
+                    placeholder="Số tiền đăng ký trả góp qua thẻ"
+                    data-step="1000000" data-min="0" data-max="100000000"
+                    value="{{ form.loan_amount.value|default:'' }}"
+                    autocomplete="off">
+                <button class="btn btn-outline-secondary money-inc" type="button" data-target="#loan_amount">+</button>
+            </div>
+            <div class="form-text text-danger d-none" id="loan_amount_required">Vui lòng điền thông tin!</div>
+            <div class="form-text text-danger d-none" id="loan_amount_step">Số tiền vay cần là bội số của 1 triệu</div>
+            <div class="form-text text-danger d-none" id="loan_amount_help">Số tiền cần vay phải trong khoảng (10 triệu – 100 triệu)</div>
+            {% if form.loan_amount.errors %}<div class="text-danger small">{{ form.loan_amount.errors }}</div>{% endif %}
+            </div>
+
+            <!-- Thu nhập -->
+            <div class="mb-3">
+            <label class="form-label">Thu nhập *</label>
+            <div class="input-group money-group">
+                <button class="btn btn-outline-secondary money-dec" type="button" data-target="#income">−</button>
+                <input id="income" name="income" type="text"
+                    class="form-control money-input"
+                    placeholder="Nhập thu nhập của bạn"
+                    data-step="1000000" data-min="0" data-max="100000000"
+                    value="{{ form.income.value|default:'' }}"
+                    autocomplete="off">
+                <button class="btn btn-outline-secondary money-inc" type="button" data-target="#income">+</button>
+            </div>
+            <div class="form-text text-danger d-none" id="income_required">Vui lòng điền thông tin!</div>
+            <div class="form-text text-danger d-none" id="income_step">Thu nhập cần là bội số của 1 triệu</div>
+            <div class="form-text text-danger d-none" id="income_help">Thu nhập phải trong khoảng (3 triệu – 100 triệu)
+            </div>
+            {% if form.income.errors %}<div class="text-danger small">{{ form.income.errors }}</div>{% endif %}
+            </div>
+
+            <!-- Tổng tiền trả góp hàng tháng -->
+            <div class="mb-3">
+            <label class="form-label">Tổng tiền trả góp hàng tháng *</label>
+            <div class="input-group money-group">
+                <button class="btn btn-outline-secondary money-dec" type="button" data-target="#monthly_payment">−</button>
+                <input id="monthly_payment" name="monthly_payment" type="text"
+                    class="form-control money-input"
+                    placeholder="Tổng số tiền trả góp hàng tháng (nếu có)"
+                    data-step="1000000" data-min="0" data-max="100000000"
+                    value="{{ form.monthly_payment.value|default:'' }}"
+                    autocomplete="off">
+                <button class="btn btn-outline-secondary money-inc" type="button" data-target="#monthly_payment">+</button>
+            </div>
+            <div class="form-text text-danger d-none" id="monthly_payment_required">Vui lòng điền thông tin!</div>
+            <div class="form-text text-danger d-none" id="monthly_payment_help">Số tiền phải trả phải bé hơn 50% thu nhập của bạn
+            </div>
+            {% if form.monthly_payment.errors %}<div class="text-danger small">{{ form.monthly_payment.errors }}</div>{% endif %}
+            </div>
+            <!-- ====== /Ba ô tiền ====== -->
+
+            <!-- Consent -->
+            
+            {% with cid=form.agree_call.id_for_label %}
+                <div class="form-check custom-check">
+                    {{ form.agree_call }}
+                    <label class="form-check-label" for="{{ cid }}">{{ form.agree_call.label }}</label>
+                </div>
+            {% endwith %}
+
+            
+            {% with cid=form.agree_policy.id_for_label  %}
+                <div class="form-check custom-check">
+                    {{ form.agree_policy}}
+                    <label class="form-check-label" for="{{ cid }}">{{ form.agree_policy.label }}</label>
+                </div>
+            {% endwith %}
+
+            
+            {% with cid=form.agree_vpb.id_for_label  %}
+                <div class="form-check custom-check">
+                    {{ form.agree_vpb }}
+                    <label class="form-check-label" for="{{ cid }}">{{ form.agree_vpb.label }}</label>
+                </div>
+            {% endwith %}
+
+            <p class="danger-note mb-3">
+                QUÝ KHÁCH KHÔNG PHẢI TRẢ BẤT CỨ KHOẢN PHÍ NÀO TRƯỚC, TRONG VÀ SAU GIẢI NGÂN.
+                KHÔNG CHIA SẺ THÔNG TIN TÀI KHOẢN/OTP CHO BẤT KỲ AI.
+            </p>
+
+            <button type="submit" class="btn btn-primary w-100 py-2">Xác nhận</button>
+        </form>
+        </div>
+    </div>
+</body>
+</html>
