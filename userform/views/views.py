@@ -7,7 +7,7 @@ import requests
 import base64
 import logging
 import time
-from ..helper.utils import session_safe, mask_phone
+from ..helper.utils import normalize_id, normalize_phone, session_safe, mask_phone
 import base64
 import logging
 import time
@@ -16,6 +16,8 @@ import random
 from ..models import CustomerInfo
 from django.utils import timesince
 from django_ratelimit.decorators import ratelimit
+from django.db import IntegrityError
+from django.db.models import Q
 
 
 logger = logging.getLogger(__name__)
@@ -171,17 +173,51 @@ def verify_otp(request):
                 'masked_phone': masked_phone,
             })
 
-        # Ngược lại là submit OTP
+        # Submit OTP
         form = OTPForm(request.POST)
         if form.is_valid():
             if str(form.cleaned_data['otp']) == str(request.session.get('otp')):
-                user_data = request.session.get('user_data')
+                user_data = request.session.get('user_data') or {}
 
                 # Bind lại vào ModelForm để lưu model chính xác
                 mf = CustomerInfoForm(user_data)
                 if mf.is_valid():
-                    mf.save()
-                    # dọn session
+                    
+                    phone = mf.cleaned_data['phone_number']
+                    idno = mf.cleaned_data['id_card']
+                    exists_open = CustomerInfo.objects.filter(
+                        phone_number = normalize_phone(phone),
+                        id_card = normalize_id(idno),
+                        status = 'OPEN'
+                    ).exists()
+                    
+                    if exists_open:
+                        messages.info(request,
+                            "Hồ sơ của bạn đã được ghi nhận và đang xử lý. "
+                            "Vui lòng chờ kết quả hoặc liên hệ tổng đài để cập nhật.")
+                        # có thể chuyển tới 1 trang 'status' nếu bạn có
+                        masked_phone = mask_phone(request.session.get('otp_phone'))
+                        return render(request, 'userform/otp.html', {
+                            'form': OTPForm(),
+                            'remaining': seconds_remaining(request.session),
+                            'masked_phone': masked_phone,
+                        })
+                    
+                    try:
+                        mf.save()
+                    except IntegrityError:
+                        messages.info(request,
+                            "Hồ sơ của bạn đã tồn tại và đang xử lý. "
+                            "Vui lòng chờ kết quả.")
+                        masked_phone = mask_phone(request.session.get('otp_phone'))
+                        return render(request, 'userform/otp.html', {
+                            'form': OTPForm(),
+                            'remaining': seconds_remaining(request.session),
+                            'masked_phone': masked_phone,
+                        })
+                    
+                    
+                    # save successfully -> clean session
                     for k in ('user_data','otp','otp_sent_at','otp_phone'):
                         request.session.pop(k, None)
                     return HttpResponse('Đăng ký thành công!')
@@ -191,7 +227,6 @@ def verify_otp(request):
             else:
                 messages.error(request, 'Mã OTP không đúng!')
 
-        # Fallthrough: render lại trang OTP với lỗi
         remaining = seconds_remaining(request.session)
         masked_phone = mask_phone(request.session.get('otp_phone'))
         return render(request, 'userform/otp.html', {

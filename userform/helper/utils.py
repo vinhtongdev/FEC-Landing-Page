@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+import re
 
 def session_safe(d: dict) -> dict:
     out = {}
@@ -21,3 +22,14 @@ def mask_phone(phone: str|None) -> str|None:
         return f"{phone[:-4]}****"
     
     return phone
+
+def normalize_phone(v: str) -> str:
+    if not v: return v
+    digits = re.sub(r'\D', '', v)
+    if digits.startswith('0'): digits = '84' + digits[1:]
+    if digits.startswith('84'): return digits
+    return '84' + digits
+
+
+def normalize_id(v: str) -> str:
+    return re.sub(r'\D', '', v or '')

@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from django import forms
+
+from userform.helper.utils import normalize_id, normalize_phone
 from ..models import CustomerInfo
 from .widgets import PlaceholderSelect
 
@@ -95,11 +97,9 @@ class CustomerInfoForm(forms.ModelForm):
         for f in self.fields.values():
             f.error_messages.setdefault('invalid', 'Giá trị không hợp lệ.')
             
-        for field_name, field in self.fields.items():
-            if field.required:
-                field.error_messages = {'required': f'Vui lòng nhập {self.fields[field_name].label.lower()}.'}
+        for name, f in self.fields.items():
+            f.error_messages.setdefault('required', f'Vui lòng nhập {f.label.lower()}.')
                 
-        self.fields['birth_date'].input_formats = ['%d/%m/%Y']
             
         
     def clean(self):
@@ -138,12 +138,20 @@ class CustomerInfoForm(forms.ModelForm):
     
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number')
-        if phone and not phone.isdigit():
+        if not phone:
+            raise forms.ValidationError('Vui lòng nhập số điện thoại.')
+        
+        phone = normalize_phone(phone)
+        
+        if not phone.isdigit() or not phone.startswith('84') or len(phone) < 11:
             raise forms.ValidationError('Số điện thoại không hợp lệ.')
         return phone
     
     def clean_id_card(self):
-        id_card = self.cleaned_data.get('id_card')
+        id_card = self.cleaned_data.get('id_card', '')
+        
+        id_card = normalize_id(id_card)
+        
         if not id_card:
             raise forms.ValidationError('Vui lòng nhập CCCD/CMND/Căn cước.')
         if not id_card.isdigit() or len(id_card) !=12:

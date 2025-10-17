@@ -1,10 +1,21 @@
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from django.db.models import Q, UniqueConstraint
+
+from userform.helper.utils import normalize_id, normalize_phone
 
 class CustomerInfo(models.Model):
     class Meta:
         db_table = 'Customer'
+        # ❗ Chỉ cho phép 1 hồ sơ OPEN cho mỗi (phone_number, id_card)
+        constraints = [
+            UniqueConstraint(
+                fields=['phone_number', 'id_card'],
+                condition=Q(status='OPEN'),
+                name='uniq_open_application_per_phone_and_id'
+            )
+        ]
     
     PROVINCES = [
         ("ha_noi", "Hà Nội"),
@@ -68,21 +79,42 @@ class CustomerInfo(models.Model):
         ('nu', 'Nữ'),
     ]
     
+    STATUS_CHOICES = [
+        ('OPEN', 'Đang mở / chờ xử lý'),
+        ('CLOSED', 'Đã đóng'),
+    ]
+    
     permanent_address = models.CharField(max_length=100, choices=PROVINCES, verbose_name='Nơi đăng ký thường trú')  # Dropdown địa chỉ
     full_name = models.CharField(max_length=100, verbose_name='Họ tên đầy đủ trên CCCD')
     gender = models.CharField(max_length=3, choices=GENDER_CHOICES, verbose_name='Giới tính')
+    
     phone_number = models.CharField(max_length=15, verbose_name='Số điện thoại', null=False, blank=False)
     birth_date = models.DateField(verbose_name='Ngày tháng năm sinh') 
     id_card = models.CharField(max_length=20, verbose_name='CCCD/CMND/Căn cước')
+    
     work_status = models.CharField(max_length=50, choices=WORK_STATUS, verbose_name='Trạng thái công việc')  # Dropdown
     doc_provided = models.CharField(max_length=50, choices=DOC_TYPES, verbose_name='Chứng từ cung cấp')  # Dropdown
     loan_amount = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Số tiền đăng ký')  # 10-100 triệu
     income = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Thu nhập')
     monthly_payment = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Tổng tiền trả góp hàng tháng', blank=True)
+    
     agree_call = models.BooleanField(default=False, verbose_name='Tôi đồng ý nhận cuộc gọi từ CNEXT JSC')
     agree_policy = models.BooleanField(default=False, verbose_name='Tôi đã đọc và đồng ý với Chính sách bảo vệ dữ liệu')
     agree_vpb = models.BooleanField(default=False, verbose_name='Tôi đồng ý với VPB SMBC FC thu thập dữ liệu')
+    
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OPEN', verbose_name='Trạng thái')
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'{self.full_name} - {self.phone_number}'
+    
+    def clean(self):
+        self.phone_number = normalize_phone(self.phone_number)
+        self.id_card = normalize_id(self.id_card)
+        super().clean()
+        
+    def save(self, *args, **kwargs):
+        self.phone_number = normalize_phone(self.phone_number)
+        self.id_card = normalize_id(self.id_card)
+        return super().save(*args, **kwargs)
