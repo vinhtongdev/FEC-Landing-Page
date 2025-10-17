@@ -183,5 +183,68 @@
         </form>
         </div>
     </div>
+    <!-- Modal hiển thị khi gửi OTP -->
+<div class="modal fade" id="otpProgressModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header">
+        <h5 class="modal-title">Đang gửi mã OTP…</h5>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 text-muted">Vui lòng đợi trong giây lát. Đừng đóng trình duyệt.</p>
+        <div class="progress" role="progressbar" aria-label="Tiến độ gửi OTP" aria-valuemin="0" aria-valuemax="100">
+          <div id="otpProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 10%">10%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+    const form = document.querySelector('form');
+    if (!form) return;
+
+    let timerId = null, percent = 10;
+    const bar = document.getElementById('otpProgressBar');
+    const modalEl = document.getElementById('otpProgressModal');
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+
+    function startProgress() {
+        // tăng dần đến 90% rồi giữ ở đó (đợi server trả về)
+        percent = 10;
+        bar.style.width = percent + '%';
+        bar.textContent = percent + '%';
+
+        timerId = setInterval(() => {
+        if (percent < 90) {
+            percent += Math.max(1, Math.round((90 - percent) / 8)); // chậm dần
+            bar.style.width = percent + '%';
+            bar.textContent = percent + '%';
+        }
+        }, 200);
+    }
+
+    function stopProgress() {
+        if (timerId) clearInterval(timerId);
+        timerId = null;
+        percent = 100;
+        bar.style.width = '100%';
+        bar.textContent = '100%';
+    }
+
+    // Khi submit form: hiển thị modal, disable nút submit để tránh bấm nhiều lần
+    form.addEventListener('submit', function() {
+        // disable toàn bộ buttons
+        form.querySelectorAll('button, input[type="submit"]').forEach(b => b.disabled = true);
+        modal.show();
+        startProgress();
+    });
+
+    // Khi trang sắp rời (server phản hồi) → dừng đồng hồ (không bắt buộc)
+    window.addEventListener('beforeunload', stopProgress);
+})();
+</script>
+
 </body>
 </html>

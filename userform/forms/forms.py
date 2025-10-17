@@ -5,6 +5,24 @@ from ..models import CustomerInfo
 from .widgets import PlaceholderSelect
 
 class CustomerInfoForm(forms.ModelForm):
+    birth_date = forms.DateField(
+        label='Ngày tháng năm sinh',
+        input_formats=['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'],
+        widget=forms.DateInput(
+            format='%d/%m/%Y',
+            attrs={
+                'class': 'form-control',
+                'type': 'text',           # nếu bạn muốn hiển thị dd/mm/yyyy
+                'placeholder': 'dd/mm/yyyy',
+                'autocomplete': 'off',
+                'inputmode': 'numeric',
+            }
+        ),
+        error_messages={
+            'required': 'Vui lòng nhập ngày sinh.',
+            'invalid': 'Ngày sinh không hợp lệ. Định dạng đúng: dd/mm/yyyy.',
+        }
+    )
     gender = forms.TypedChoiceField(
         label="Giới tính *",
         choices=CustomerInfo.GENDER_CHOICES,
@@ -60,9 +78,9 @@ class CustomerInfoForm(forms.ModelForm):
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ tên đầy đủ trên CCCD', 'required': True}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại di động'}),
-            'birth_date': forms.TextInput(
-                attrs={'class': 'form-control', 'placeholder': 'DD/MM/YYYY', 'id': 'id_birth_date'}
-            ),  
+            # 'birth_date': forms.TextInput(
+            #     attrs={'class': 'form-control', 'placeholder': 'DD/MM/YYYY', 'id': 'id_birth_date'}
+            # ),  
             'id_card': forms.TextInput(attrs={'class': 'form-control','placeholder': 'Nhập 12 số CCCD gắn chip/Căn cước phôi mới'}),
             'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'min': 10000000, 'max': 100000000, 'placeholder': 'Số tiền đăng ký trả góp qua thẻ'}),
             'income': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Thu nhập của bạn'}),
@@ -74,6 +92,9 @@ class CustomerInfoForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for f in self.fields.values():
+            f.error_messages.setdefault('invalid', 'Giá trị không hợp lệ.')
+            
         for field_name, field in self.fields.items():
             if field.required:
                 field.error_messages = {'required': f'Vui lòng nhập {self.fields[field_name].label.lower()}.'}

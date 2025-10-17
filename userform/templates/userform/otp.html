@@ -1,25 +1,90 @@
-<!DOCTYPE html>
+{% load static django_bootstrap5 %}
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Xác thực OTP</title>
-    {% load bootstrap5 %}
     {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
     {% bootstrap_javascript %}
+    <!-- JS riêng cho trang OTP -->
+    <script defer src="{% static 'js/otp.js' %}"></script>
+
     <style>
-        body { background-color: #f0f8ff; }  /* Màu nền giống form chính */
+        body { background:#eef7ff; }
+        .page-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .otp-card{
+        width:100%;max-width:420px;background:#fff;border:0;border-radius:20px;
+        box-shadow:0 10px 30px rgba(0,0,0,.08);padding:22px;
+        }
+        .otp-title{color:#0ea5e9;font-weight:700;text-align:center;margin-bottom:10px;}
+        .hint{color:#6b7280;font-size:.95rem;text-align:center;margin-bottom:14px;}
+        .otp-input input{
+        letter-spacing:.2em;text-align:center;font-weight:600;padding:12px 14px;
+        }
+        .actions{display:flex;gap:10px;}
+        .actions .btn{flex:1;}
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="text-primary">Xác thực mã OTP</h2>
-        <p>Mã OTP đã được gửi đến số điện thoại/email của bạn. Vui lòng nhập để xác nhận.</p>
-        <form method="post">
+    <div class="page-wrap">
+        <div class="otp-card">
+        <h2 class="otp-title">Xác thực mã OTP</h2>
+        <p class="hint">
+            Mã OTP đã gửi đến
+            <strong>{{ masked_phone|default:"số điện thoại của bạn" }}</strong>.
+            Vui lòng nhập để xác nhận.
+        </p>
+
+        {% if messages %}
+            <div class="mb-2">
+            {% for m in messages %}
+                <div class="alert alert-{{ m.tags|default:'info' }} mb-2">{{ m }}</div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" class="mb-2" id="otp-form">
             {% csrf_token %}
-            {% bootstrap_form form %}
+            <div class="otp-input mb-3">
+            {% bootstrap_field form.otp show_label=False placeholder="Nhập mã OTP" %}
+            </div>
+
+            <div class="actions mb-1">
             <button type="submit" class="btn btn-primary">Xác nhận OTP</button>
+
+            <!-- Nút gửi lại (POST cùng form, action=resend) -->
+            <button type="submit"
+                    name="action" value="resend"
+                    id="btn-resend"
+                    class="btn btn-outline-secondary"
+                    {% if remaining and remaining > 0 %}disabled{% endif %}>
+                Gửi lại (<span id="countdown">{{ remaining|default:0 }}</span>s)
+            </button>
+            </div>
         </form>
+
+        <p class="text-center text-muted small mb-0">
+            Vì an toàn, đừng chia sẻ mã OTP cho bất kỳ ai.
+        </p>
+        </div>
+    </div>
+
+    <!-- Modal tiến trình khi GỬI LẠI OTP -->
+    <div class="modal fade" id="resendModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px">
+            <div class="modal-header">
+            <h5 class="modal-title">Đang gửi lại OTP…</h5>
+            </div>
+            <div class="modal-body">
+            <div class="progress" role="progressbar" aria-label="Tiến độ gửi OTP" aria-valuemin="0" aria-valuemax="100">
+                <div id="resendBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:15%">15%</div>
+            </div>
+            </div>
+        </div>
+        </div>
     </div>
 </body>
 </html>

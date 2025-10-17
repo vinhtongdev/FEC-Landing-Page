@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'userform',
     'django_bootstrap5',
+    'django_ratelimit',
 ]
 
 MIDDLEWARE = [
@@ -148,6 +149,12 @@ TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 
+# Cấu hình South Telecom cho SMS OTP
+SOUTH_API_USER = os.environ.get('SOUTH_API_USER')
+SOUTH_API_PWD = os.environ.get('SOUTH_API_PWD')
+SOUTH_FROM = os.environ.get('SOUTH_FROM')
+SOUTH_API_URL = os.environ.get('SOUTH_API_URL')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -166,3 +173,16 @@ LOGGING = {
         },
     },
 }
+
+# Config Cache with Redis
+# pip install django-redis
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1", # /1 để dùng database số 1 của Redis
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
