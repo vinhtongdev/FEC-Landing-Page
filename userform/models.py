@@ -58,7 +58,7 @@ class CustomerInfo(models.Model):
     ]
 
     WORK_STATUS = [
-        ('nhan_vien', 'Nhân viên văn phòng'),
+        ('nhan_vien_van_phong', 'Nhân viên văn phòng'),
         ('cong_nhan', 'Công nhân'),
         ('tu_do', 'Tự do'),
         ('sinh_vien', 'Sinh viên'),

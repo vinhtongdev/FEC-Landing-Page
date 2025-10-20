@@ -48,11 +48,11 @@
             <!-- Giới tính (radio, không có “-----”) -->
             <div class="mb-3">
                 <label class="form-label d-block">{{ form.gender.label }}</label>
-                <div class="radio-group">
-                {% for r in form.gender %}
-                    <div class="form-check">
+                <div class="radio-group d-flex gap-4">
+                {% for r in form.gender %} 
+                    <div class="form-check custom-check">
                         {{ r.tag }}
-                        <label class="form-check-label ms-1">{{ r.choice_label }}</label>
+                        <label class="form-check-label ms-1" for="{{ r.id_for_label }}">{{ r.choice_label }}</label>
                     </div>
                 {% endfor %}
                 </div>

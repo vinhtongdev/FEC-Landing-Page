@@ -28,7 +28,7 @@ class CustomerInfoForm(forms.ModelForm):
     gender = forms.TypedChoiceField(
         label="Giới tính *",
         choices=CustomerInfo.GENDER_CHOICES,
-        widget=forms.RadioSelect,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
         coerce=str,
         empty_value=None,                    
         required=True,
