@@ -8,17 +8,13 @@ import base64
 import logging
 import time
 from ..helper.utils import normalize_id, normalize_phone, session_safe, mask_phone
-import base64, io, hashlib
+import base64
 import time
 from ..helper.utils import session_safe, mask_phone
 import random
-from ..models import CustomerInfo, SignedDocument, DocumentTemplate
+from ..models import CustomerInfo
 from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
-from django.template.loader import render_to_string
-from django.core.files.base import ContentFile
-from django.utils import timezone
-from weasyprint import HTML
 
 
 logger = logging.getLogger(__name__)
