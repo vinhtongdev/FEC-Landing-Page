@@ -32,27 +32,39 @@ class CustomerInfoForm(forms.ModelForm):
         coerce=str,
         empty_value=None,                    
         required=True,
+        error_messages={
+            'required': 'Vui lòng chọn giới tính.',
+        }
     )
     
     permanent_address = forms.ChoiceField(
         label='Nơi đăng ký thường trú *',
         choices=[('', 'Nơi đang sống')] + list(CustomerInfo.PROVINCES),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn nơi đang sống.',
+        }
     )
 
     work_status = forms.ChoiceField(
         label='Trạng thái công việc *',
         choices=[('', 'Chọn thông tin công việc của bạn')] + list(CustomerInfo.WORK_STATUS),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn trạng thái công việc.',
+        }
     )
 
     doc_provided = forms.ChoiceField(
         label='Chứng từ cung cấp *',
         choices=[('', 'Chứng từ có thể cung cấp')] + list(CustomerInfo.DOC_TYPES),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn chứng từ có thể cung cấp.',
+        }
     )
     class Meta:
         model = CustomerInfo
@@ -79,10 +91,7 @@ class CustomerInfoForm(forms.ModelForm):
         }
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ tên đầy đủ trên CCCD', 'required': True}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại di động'}),
-            # 'birth_date': forms.TextInput(
-            #     attrs={'class': 'form-control', 'placeholder': 'DD/MM/YYYY', 'id': 'id_birth_date'}
-            # ),  
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại di động'}), 
             'id_card': forms.TextInput(attrs={'class': 'form-control','placeholder': 'Nhập 12 số CCCD gắn chip/Căn cước phôi mới'}),
             'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'min': 10000000, 'max': 100000000, 'placeholder': 'Số tiền đăng ký trả góp qua thẻ'}),
             'income': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Thu nhập của bạn'}),
@@ -90,6 +99,13 @@ class CustomerInfoForm(forms.ModelForm):
             'agree_call': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'agree_policy': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'agree_vpb': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        error_messages = {
+            'full_name': {'required': 'Vui lòng nhập họ tên.'},
+            'phone_number': {'required': 'Vui lòng nhập số điện thoại.'},
+            'id_card': {'required': 'Vui lòng nhập CCCD gắn chip/Căn cước.'},
+            'loan_amount': {'required': 'Vui lòng nhập số tiền đăng ký.'},
+            'income': {'required': 'Vui lòng nhập thu nhập.'},
         }
         
     def __init__(self, *args, **kwargs):

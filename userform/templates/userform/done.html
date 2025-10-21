@@ -27,8 +27,8 @@
             <p class="mb-2"><strong>Khách hàng:</strong> {{ customer.full_name }}</p>
             <p class="mb-3"><strong>Thời gian:</strong> {{ customer.created_at|date:"H:i d/m/Y" }}</p>
 
-            {% if customer.signed_document %}
-                <a class="btn btn-primary" href="{{ customer.signed_document.url }}" target="_blank" rel="noopener" download>Tải PDF</a>
+            {% if customer.signature_document %}
+                <a class="btn btn-primary" href="{{ customer.signature_document.url }}" target="_blank" rel="noopener" download>Tải PDF</a>
             {% else %}
                 <p class="text-warning">File PDF chưa sẵn sàng. Vui lòng thử lại sau.</p>
             {% endif %}

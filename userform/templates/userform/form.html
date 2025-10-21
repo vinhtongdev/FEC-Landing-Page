@@ -164,7 +164,7 @@
                     {{ form.agree_policy }}
                     <label class="form-check-label" for="{{ cid }}">
                         Tôi đã đọc và đồng ý với
-                        <a href="{% url 'privacy_policy' %}" style="font-style:italic">Chính sách bảo vệ dữ liệu cá nhân của IT-COMMUNICATIONS VIỆT NAM</a>
+                        <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener noreferrer" style="font-style:italic">Chính sách bảo vệ dữ liệu cá nhân của IT-COMMUNICATIONS VIỆT NAM</a>
                     </label>
                 </div>
             {% endwith %}
@@ -173,7 +173,9 @@
             {% with cid=form.agree_vpb.id_for_label  %}
                 <div class="form-check custom-check">
                     {{ form.agree_vpb }}
-                    <label class="form-check-label" for="{{ cid }}">{{ form.agree_vpb.label }}</label>
+                    <label class="form-check-label" for="{{ cid }}">
+                        Bằng việc bấm nút "Xác nhận", Tôi đồng ý cho VPB SMBC FC thu thập, xử lý thông tin, dữ liệu cá nhân của Tôi theo <a href="https://fecredit.com.vn/bao-mat-va-quyen-rieng-tu/" target="_blank" rel="noopener noreferrer">Chính sách bảo mật và quyền riêng tư</a> của VPB SMBC FC từng thời kỳ được đăng tải trên website cũng như theo Văn bản xác nhận
+                    </label>
                 </div>
             {% endwith %}
 
