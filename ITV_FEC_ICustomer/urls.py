@@ -1,3 +1,6 @@
+from django.conf import settings
+from django.conf.urls.static import static
+
 """
 URL configuration for ITV_FEC_ICustomer project.
 
@@ -15,10 +18,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from userform.views.views import user_form, verify_otp
 
 urlpatterns = [
     path('', user_form, name='user_form'),
+    path('', include('userform.urls')),
     path('verify/', verify_otp, name='verify_otp'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -8,16 +8,17 @@ import base64
 import logging
 import time
 from ..helper.utils import normalize_id, normalize_phone, session_safe, mask_phone
-import base64
-import logging
+import base64, io, hashlib
 import time
 from ..helper.utils import session_safe, mask_phone
 import random
-from ..models import CustomerInfo
-from django.utils import timesince
+from ..models import CustomerInfo, SignedDocument, DocumentTemplate
 from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
-from django.db.models import Q
+from django.template.loader import render_to_string
+from django.core.files.base import ContentFile
+from django.utils import timezone
+from weasyprint import HTML
 
 
 logger = logging.getLogger(__name__)
@@ -136,8 +137,6 @@ def user_form(request):
     form = CustomerInfoForm(initial)
     return render(request, 'userform/form.html', {'form': form})
 
-
-
 @ratelimit(key='ip', rate='5/m', block=False) # Giới hạn 5 lần/phút theo IP
 def verify_otp(request):
     # Tính còn bao nhiêu giây cooldown (để hiển thị và disable nút)
@@ -204,7 +203,8 @@ def verify_otp(request):
                         })
                     
                     try:
-                        mf.save()
+                        obj = mf.save()
+                        requests.session['otp_ok_for_customer_id'] = obj.id
                     except IntegrityError:
                         messages.info(request,
                             "Hồ sơ của bạn đã tồn tại và đang xử lý. "
@@ -242,4 +242,11 @@ def verify_otp(request):
         'remaining': remaining,
         'masked_phone': masked_phone,
     })            
+
+def privacy_policy(request):
+    return render(request, 'userform/privacy_policy.html')
+
+def _get_client_ip(request):
+    ip = request.META.get("HTTP_X_FORWARDED_FOR")
+    return ip.split(",")[0].strip() if ip else request.META.get("REMOTE_ADDR")
 

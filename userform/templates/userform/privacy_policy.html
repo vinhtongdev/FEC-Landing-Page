@@ -1,0 +1,58 @@
+{% load static django_bootstrap5 %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Chính sách bảo vệ dữ liệu cá nhân | IT-COMMUNICATIONS VIỆT NAM</title>
+    {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <style>
+        body { background:#f8fafc; }
+        .doc-wrap{max-width:900px;margin:0 auto;padding:24px;}
+        .doc-card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px;}
+        h1{font-size:1.6rem;margin-bottom:8px;color:#0ea5e9;}
+        h2{font-size:1.1rem;margin-top:18px}
+        p{margin:.5rem 0}
+        .muted{color:#64748b}
+    </style>
+</head>
+<body>
+    <div class="doc-wrap">
+        <div class="doc-card">
+        <h1>Chính sách bảo vệ dữ liệu cá nhân</h1>
+        <div class="muted">IT-COMMUNICATIONS VIỆT NAM • Cập nhật: {{ now|date:"d/m/Y" }}</div>
+
+        <h2>1. Phạm vi áp dụng</h2>
+        <p>Chính sách này áp dụng cho khách hàng sử dụng biểu mẫu đăng ký và các dịch vụ liên quan do IT-COMMUNICATIONS VIỆT NAM cung cấp.</p>
+
+        <h2>2. Mục đích thu thập</h2>
+        <p>Thông tin được thu thập nhằm phục vụ việc xác minh, đánh giá hồ sơ vay, liên hệ tư vấn và đáp ứng yêu cầu pháp lý hiện hành.</p>
+
+        <h2>3. Loại dữ liệu xử lý</h2>
+        <ul>
+            <li>Thông tin nhận dạng: Họ tên, CCCD/CMND, ngày sinh, giới tính.</li>
+            <li>Thông tin liên hệ: Số điện thoại, địa chỉ.</li>
+            <li>Thông tin tài chính: Thu nhập, khoản vay đăng ký.</li>
+        </ul>
+
+        <h2>4. Căn cứ pháp lý & thời hạn lưu trữ</h2>
+        <p>Dữ liệu được xử lý theo quy định pháp luật Việt Nam về bảo vệ dữ liệu cá nhân và lưu trữ không lâu hơn mức cần thiết cho mục đích đã nêu.</p>
+
+        <h2>5. Quyền của chủ thể dữ liệu</h2>
+        <p>Bạn có quyền truy cập, yêu cầu chỉnh sửa, hạn chế xử lý hoặc yêu cầu xoá dữ liệu theo quy định pháp luật. Liên hệ: <a href="mailto:privacy@it-comm.vn">privacy@it-comm.vn</a>.</p>
+
+        <h2>6. Chia sẻ dữ liệu</h2>
+        <p>Dữ liệu có thể được chia sẻ với đối tác thẩm định/đơn vị tài chính khi cần thiết cho mục đích xử lý hồ sơ, trên cơ sở thoả thuận bảo mật phù hợp.</p>
+
+        <h2>7. Biện pháp an ninh</h2>
+        <p>Chúng tôi áp dụng các biện pháp kỹ thuật và tổ chức phù hợp để bảo đảm an toàn dữ liệu (mã hoá, kiểm soát truy cập, ghi log).</p>
+
+        <h2>8. Liên hệ</h2>
+        <p>Nếu có câu hỏi về Chính sách, vui lòng liên hệ <a href="mailto:privacy@it-comm.vn">privacy@it-comm.vn</a>.</p>
+        </div>
+    </div>
+
+    {% bootstrap_javascript %}
+</body>
+</html>

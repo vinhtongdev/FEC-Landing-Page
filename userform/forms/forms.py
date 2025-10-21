@@ -73,9 +73,9 @@ class CustomerInfoForm(forms.ModelForm):
             'loan_amount': 'Số tiền đăng ký *',
             'income': 'Thu nhập *',
             'monthly_payment': 'Tổng tiền trả góp hàng tháng *',
-            'agree_call': 'Tôi đồng ý nhận cuộc gọi từ CNEXT JSC về sản phẩm dịch vụ và đang đăng ký.',
-            'agree_policy': 'Tôi đã đọc và đồng ý với Chính sách bảo vệ dữ liệu cá nhân của CNEXT.',
-            'agree_vpb': 'Tôi đồng ý với VPB SMBC FC thu thập, xử lý thông tin, dữ liệu của tôi để phục vụ mục đích đánh giá, phê duyệt hồ sơ vay tín chấp tại VPB SMBC FC từ thời điểm nộp đơn đến khi website VPB SMBC FC thông báo kết quả.',
+            'agree_call': 'Tôi đồng ý nhận cuộc gọi từ IT-COMMUNICATIONS VIỆT NAM về sản phẩm dịch vụ và đang đăng ký.',
+            'agree_policy': 'Tôi đã đọc và đồng ý với Chính sách bảo vệ dữ liệu cá nhân của IT-COMMUNICATIONS VIỆT NAM.',
+            'agree_vpb': 'Bằng việc bấm nút "Xác nhận", Tôi đồng ý cho VPB SMBC FC thu thập, xử lý thông tin, dữ liệu cá nhân của Tôi theo Chính sách bảo mật và quyền riêng tư của VPB SMBC FC từng thời kỳ được đăng tải trên website cũng như theo Văn bản xác nhận',
         }
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ tên đầy đủ trên CCCD', 'required': True}),

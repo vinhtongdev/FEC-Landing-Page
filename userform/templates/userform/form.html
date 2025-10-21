@@ -160,9 +160,12 @@
 
             
             {% with cid=form.agree_policy.id_for_label  %}
-                <div class="form-check custom-check">
-                    {{ form.agree_policy}}
-                    <label class="form-check-label" for="{{ cid }}">{{ form.agree_policy.label }}</label>
+                <div class="form-check custom-check mb-2">
+                    {{ form.agree_policy }}
+                    <label class="form-check-label" for="{{ cid }}">
+                        Tôi đã đọc và đồng ý với
+                        <a href="{% url 'privacy_policy' %}" style="font-style:italic">Chính sách bảo vệ dữ liệu cá nhân của IT-COMMUNICATIONS VIỆT NAM</a>
+                    </label>
                 </div>
             {% endwith %}
 
@@ -183,21 +186,22 @@
         </form>
         </div>
     </div>
+
     <!-- Modal hiển thị khi gửi OTP -->
 <div class="modal fade" id="otpProgressModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius:16px">
-      <div class="modal-header">
-        <h5 class="modal-title">Đang gửi mã OTP…</h5>
-      </div>
-      <div class="modal-body">
-        <p class="mb-2 text-muted">Vui lòng đợi trong giây lát. Đừng đóng trình duyệt.</p>
-        <div class="progress" role="progressbar" aria-label="Tiến độ gửi OTP" aria-valuemin="0" aria-valuemax="100">
-          <div id="otpProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 10%">10%</div>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header">
+            <h5 class="modal-title">Đang gửi mã OTP…</h5>
         </div>
-      </div>
+        <div class="modal-body">
+            <p class="mb-2 text-muted">Vui lòng đợi trong giây lát. Đừng đóng trình duyệt.</p>
+            <div class="progress" role="progressbar" aria-label="Tiến độ gửi OTP" aria-valuemin="0" aria-valuemax="100">
+            <div id="otpProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 10%">10%</div>
+            </div>
+        </div>
+        </div>
     </div>
-  </div>
 </div>
 
 <script>
