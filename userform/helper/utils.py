@@ -33,3 +33,15 @@ def normalize_phone(v: str) -> str:
 
 def normalize_id(v: str) -> str:
     return re.sub(r'\D', '', v or '')
+
+def format_vn_phone(phone):
+    if isinstance(phone, str) and phone.startswith('84') and len(phone) == 11:
+        local = '0' + phone[2:]
+        return f"{local[:4]} {local[4:7]} {local[7:]}"
+    return phone
+
+def format_vn_currency(amount, currency='VND'):
+    if isinstance(amount, (int, float, Decimal)):
+        formatted =f'{int(amount):,}'.replace(',', '.')
+        return f'{formatted} {currency}'
+    return str(amount)

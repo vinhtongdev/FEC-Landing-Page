@@ -1,5 +1,11 @@
-from django.shortcuts import render, redirect
+from io import BytesIO
+from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse
+from django.core.files.base import ContentFile
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from PIL import Image
 from ..forms.forms import CustomerInfoForm, OTPForm
 from django.contrib import messages
 from django.conf import settings
@@ -10,11 +16,13 @@ import time
 from ..helper.utils import normalize_id, normalize_phone, session_safe, mask_phone
 import base64
 import time
-from ..helper.utils import session_safe, mask_phone
+from ..helper.utils import session_safe, mask_phone, format_vn_phone, format_vn_currency
 import random
 from ..models import CustomerInfo
 from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 
 logger = logging.getLogger(__name__)
@@ -200,7 +208,12 @@ def verify_otp(request):
                     
                     try:
                         obj = mf.save()
-                        requests.session['otp_ok_for_customer_id'] = obj.id
+                        request.session['otp_ok_for_customer_id'] = obj.id
+                        # save successfully -> clean session
+                        for k in ('user_data','otp','otp_sent_at','otp_phone'):
+                            request.session.pop(k, None)
+                        return redirect('confirm_and_sign', customer_id=obj.id)
+                    
                     except IntegrityError:
                         messages.info(request,
                             "Hồ sơ của bạn đã tồn tại và đang xử lý. "
@@ -212,11 +225,6 @@ def verify_otp(request):
                             'masked_phone': masked_phone,
                         })
                     
-                    
-                    # save successfully -> clean session
-                    for k in ('user_data','otp','otp_sent_at','otp_phone'):
-                        request.session.pop(k, None)
-                    return HttpResponse('Đăng ký thành công!')
                 else:
                     # Trường hợp hiếm: dữ liệu parse lại lỗi → quay về form nhập liệu
                     return render(request, 'userform/form.html', {'form': mf})
@@ -241,6 +249,77 @@ def verify_otp(request):
 
 def privacy_policy(request):
     return render(request, 'userform/privacy_policy.html')
+
+@ratelimit(key='ip', rate='5/m', block=True)
+def confirm_and_sign(request, customer_id):
+    customer = get_object_or_404(CustomerInfo, id=customer_id)
+    
+    if request.session.get('otp_ok_for_customer_id') != customer.id:
+        return redirect('Truy cấp không hợp lệ.', status=403)
+    
+    if request.method == 'POST':
+        signature_data = request.POST.get('signature_data')
+        if signature_data:
+            try:
+                # handle signed Base64 -> ImageField
+                format, imgstr = signature_data.split(';base64,')
+                ext = format.split('/')[-1]
+                data = ContentFile(base64.b64decode(imgstr), name=f'signature_{customer.id}.{ext}')
+                customer.signature = data
+                customer.save()
+                
+                # Generate PDF with auto-fill and signed image
+                buffer = BytesIO()
+                p = canvas.Canvas(buffer, pagesize=A4)
+                width, height = A4
+                
+                # Register font
+                font_path = 'fonts/NotoSans-Regular.ttf'
+                pdfmetrics.registerFont(TTFont('NotoSans', font_path))
+                
+                # Set font
+                p.setFont("NotoSans", 12)
+                
+                # Auto fill text into PDF(Optional Positions)
+                p.drawString(100,height - 100, f"Họ tên: {customer.full_name}")
+                p.drawString(100, height - 120, f"Giới tính: {customer.get_gender_display()}")
+                p.drawString(100, height - 140, f"Số điện thoại: {customer.phone_number}")
+                p.drawString(100, height - 160, f"Ngày sinh: {customer.birth_date.strftime('%d/%m/%Y')}")
+                # ... (thêm các field khác tương tự)
+                p.drawString(100, height - 300, "Điều khoản: Bằng việc ký, tôi xác nhận... (thêm nội dung đầy đủ)")
+                
+                # embed signature image
+                signature_path = customer.signature.path # đường dẫn file tạm thời
+                img = Image.open(signature_path)
+                img_width, img_height = img.size
+                p.drawInlineImage(signature_path,100, height - 500, width=img_width*0.5, height=img_height*0.5) # scale 50%
+                
+                p.save()
+                pdf_data = buffer.getvalue()
+                buffer.close()
+                
+                # Save PDF to FileField
+                pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
+                customer.signature_document = pdf_file
+                customer.save()
+                
+                # Clean session
+                request.session.pop('otp_ok_for_customer_id', None)
+                
+                messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
+                return HttpResponse("Cảm ơn bạn đã ký. Văn bản xác nhận đã được lưu.")
+            except Exception as e:
+                logger.error(f'Error in signing: {str(e)}')
+                messages.error(request, ' Có lỗi khi ký. Vui lòng thử lại.')
+    
+    context = {
+        'customer': customer,
+        'formatted_phone': format_vn_phone(customer.phone_number),
+        'formatted_loan': format_vn_currency(customer.loan_amount),
+        'formatted_income': format_vn_currency(customer.income),
+        'formatted_monthly': format_vn_currency(customer.monthly_payment),
+    }            
+    return render(request, 'userform/confirmation.html', context)
 
 def _get_client_ip(request):
     ip = request.META.get("HTTP_X_FORWARDED_FOR")

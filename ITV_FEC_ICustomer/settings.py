@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'userform',
     'django_bootstrap5',
     'django_ratelimit',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -132,8 +133,16 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Local Storage
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# AWS S3 Storage
+# AWS_ACCESS_KEY_ID = 'your_key'
+# AWS_SECRET_ACCESS_KEY = 'your_secret'
+# AWS_STORAGE_BUCKET_NAME = 'your-bucket'
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

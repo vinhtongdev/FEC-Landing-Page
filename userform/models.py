@@ -104,6 +104,9 @@ class CustomerInfo(models.Model):
     
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OPEN', verbose_name='Trạng thái')
     
+    signature = models.ImageField(upload_to='signatures/', verbose_name='Chữ ký điện tử', null=True, blank=True)
+    signature_document = models.FileField(upload_to='signed_docs/', verbose_name='Văn bản xác nhận đã ký', null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -118,3 +121,6 @@ class CustomerInfo(models.Model):
         self.phone_number = normalize_phone(self.phone_number)
         self.id_card = normalize_id(self.id_card)
         return super().save(*args, **kwargs)
+    
+    
+
