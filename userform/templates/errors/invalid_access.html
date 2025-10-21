@@ -1,0 +1,31 @@
+{% load static django_bootstrap5 %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Truy cập không hợp lệ</title>
+    {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'css/error.css' %}">
+    {% bootstrap_javascript %}
+</head>
+<body>
+    <div class="page-wrap">
+        <div class="error-card">
+        <div class="icon-circle">!</div>
+        <h2 class="title">Truy cập không hợp lệ</h2>
+        <p class="desc">{{ message }}</p>
+
+        <div class="actions">
+            <a class="btn btn-primary" href="{% url 'user_form' %}">Về trang đăng ký</a>
+            <button class="btn btn-outline-secondary" onclick="history.back()">Quay lại</button>
+        </div>
+
+        <p class="hint">
+            Cần hỗ trợ Gọi <a href="+84 (0)28 6291 3321"></a>+84 (0)28 6291 3321</a> hoặc xem
+            <a href="{% url 'privacy_policy' %}" target="_blank" rel="noopener">Chính sách dữ liệu</a>.
+        </p>
+        </div>
+    </div>
+</body>
+</html>

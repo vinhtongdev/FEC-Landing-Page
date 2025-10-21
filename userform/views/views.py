@@ -1,7 +1,9 @@
 from io import BytesIO
+from urllib.parse import urlencode
 from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse
 from django.core.files.base import ContentFile
+from django.urls import reverse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -255,7 +257,8 @@ def confirm_and_sign(request, customer_id):
     customer = get_object_or_404(CustomerInfo, id=customer_id)
     
     if request.session.get('otp_ok_for_customer_id') != customer.id:
-        return redirect('Truy cấp không hợp lệ.', status=403)
+        url = f"{reverse('invalid_access')}?{urlencode({'msg':'Phiên ký đã hết hạn. Vui lòng xác thực lại OTP.'})}"
+        return redirect(url)
     
     if request.method == 'POST':
         signature_data = request.POST.get('signature_data')
@@ -302,12 +305,11 @@ def confirm_and_sign(request, customer_id):
                 pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
                 customer.signature_document = pdf_file
                 customer.save()
-                
-                # Clean session
-                request.session.pop('otp_ok_for_customer_id', None)
+
                 
                 messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
-                return HttpResponse("Cảm ơn bạn đã ký. Văn bản xác nhận đã được lưu.")
+                return redirect('sign_done', customer_id=customer.id)
+            
             except Exception as e:
                 logger.error(f'Error in signing: {str(e)}')
                 messages.error(request, ' Có lỗi khi ký. Vui lòng thử lại.')
@@ -321,7 +323,29 @@ def confirm_and_sign(request, customer_id):
     }            
     return render(request, 'userform/confirmation.html', context)
 
+def sign_done(request, customer_id:int):
+    customer = get_object_or_404(CustomerInfo, id=customer_id)
+    
+    if request.session.get('otp_ok_for_customer_id') != customer.id:
+        return redirect(f"{reverse('invalid_access')}?{urlencode({'status':403,'msg':'Phiên truy cập không hợp lệ.'})}")
+    
+    request.session.pop('otp_ok_for_customer_id', None)
+    return render(request, 'userform/done.html', {'customer': customer})
+
+def invalid_access(request):
+    msg = request.GET.get('msg') or "Liên kết bạn truy cập không hợp lệ hoặc đã hết hạn."
+    return render(request, "errors/invalid_access.html", {'message': msg}, status=400)
+
 def _get_client_ip(request):
     ip = request.META.get("HTTP_X_FORWARDED_FOR")
     return ip.split(",")[0].strip() if ip else request.META.get("REMOTE_ADDR")
 
+
+def error_404(request, exception):
+    return render(request, 'errors/404.html', status=404)
+
+def error_403(request, exception):
+    return render(request, 'errors/403.html', status=403)
+
+def error_500(request, exception):
+    return render(request, 'errors/500.html', status=500)

@@ -26,3 +26,7 @@ urlpatterns = [
     path('', include('userform.urls')),
     path('verify/', verify_otp, name='verify_otp'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler404 ='userform.views.views.error_404'
+handler404 ='userform.views.views.error_403'
+handler404 ='userform.views.views.error_500'
