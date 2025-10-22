@@ -8,7 +8,6 @@ from django.urls import reverse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
-from PIL import Image
 from ..forms.forms import CustomerInfoForm, OTPForm
 from django.contrib import messages
 from django.conf import settings
@@ -26,10 +25,9 @@ from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, KeepInFrame, CondPageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from svglib.svglib import svg2rlg
 import json
 
 
@@ -247,34 +245,36 @@ def privacy_policy(request):
 @ratelimit(key='ip', rate='5/m', block=True)
 def confirm_and_sign(request, customer_id):
     customer = get_object_or_404(CustomerInfo, id=customer_id)
-    
+
+    # OTP hết hạn
     if request.session.get('otp_ok_for_customer_id') != customer.id:
         url = f"{reverse('invalid_access')}?{urlencode({'msg':'Phiên ký đã hết hạn. Vui lòng xác thực lại OTP.'})}"
         return redirect(url)
-    
+
     if request.method == 'POST':
         signature_data = request.POST.get('signature_data')
         if signature_data:
             try:
-                # handle signed Base64 -> ImageField
-                format, imgstr = signature_data.split(';base64,')
-                ext = format.split('/')[-1]
+                # 1) Lưu ảnh chữ ký
+                fmt, imgstr = signature_data.split(';base64,')
+                ext = fmt.split('/')[-1]
                 data = ContentFile(base64.b64decode(imgstr), name=f'signature_{customer.id}.{ext}')
                 customer.signature = data
                 customer.save()
-                
-                # Load text form JSON file
+
+                # 2) Nạp nội dung PDF
                 json_path = settings.BASE_DIR / 'userform' / 'helper' / 'pdf_content.json'
                 with open(json_path, 'r', encoding='utf-8') as f:
                     pdf_content = json.load(f)
-                
-                # Generate PDF with auto-fill and signed image
+
+                # 3) Khởi tạo PDF
                 buffer = BytesIO()
-                
-                # Use SimpleDocTemplate for multi-page PDF
-                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
-                
-                # Register font
+                doc = SimpleDocTemplate(
+                    buffer, pagesize=A4,
+                    rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=40
+                )
+
+                # Font
                 font_regular_path = settings.BASE_DIR / 'fonts' / 'times.ttf'
                 font_bold_path    = settings.BASE_DIR / 'fonts' / 'timesbd.ttf'
                 pdfmetrics.registerFont(TTFont('TimesNewRoman', str(font_regular_path)))
@@ -282,56 +282,49 @@ def confirm_and_sign(request, customer_id):
 
                 # Styles
                 styles = getSampleStyleSheet()
-                header_style = ParagraphStyle('header', fontName='TimesNewRoman', fontSize=10, leading=13, alignment=0)  # Left
-                date_style = ParagraphStyle('date', fontName='TimesNewRoman', fontSize=10, leading=13, alignment=2)  # Right
-                title_style = ParagraphStyle('title', fontName='TimesNewRoman-Bold', fontSize=14, leading=18, alignment=1, spaceBefore=6, spaceAfter=16)  # Center, bold
-                normal_style = ParagraphStyle('normal', fontName='TimesNewRoman', fontSize=10, leading=14, alignment=0, spaceAfter=6)
-                section_num_style = ParagraphStyle('section_num', fontName='TimesNewRoman-Bold', fontSize=10, leading=14, spaceBefore=10)
-                bullet_style = ParagraphStyle('bullet', fontName='TimesNewRoman', fontSize=10, leading=14, leftIndent=16, firstLineIndent=-8, spaceAfter=2)
-                personal_style = ParagraphStyle('personal', fontName='TimesNewRoman', fontSize=10, leading=14, spaceAfter=8)
-                
-                # Content list
+                header_style   = ParagraphStyle('header',   fontName='TimesNewRoman',       fontSize=10, leading=13, alignment=0)
+                date_style     = ParagraphStyle('date',     fontName='TimesNewRoman',       fontSize=10, leading=13, alignment=2)
+                title_style    = ParagraphStyle('title',    fontName='TimesNewRoman-Bold',  fontSize=14, leading=18, alignment=1, spaceBefore=6, spaceAfter=16)
+                normal_style   = ParagraphStyle('normal',   fontName='TimesNewRoman',       fontSize=10, leading=14, alignment=0, spaceAfter=6)
+                bullet_style   = ParagraphStyle('bullet',   fontName='TimesNewRoman',       fontSize=10, leading=14, leftIndent=16, firstLineIndent=-8, spaceAfter=2)
+                personal_style = ParagraphStyle('personal', fontName='TimesNewRoman',       fontSize=10, leading=14, spaceAfter=8)
+                section_style  = ParagraphStyle('section',  fontName='TimesNewRoman',       fontSize=10, leading=14, alignment=0, spaceBefore=10, spaceAfter=6)
+
                 Story = []
-                
-                # Thêm logo FECREDIT 
-                logo_path = settings.BASE_DIR / 'static' / 'images' / 'fec-logo.png'  # Giả định bạn có file
-                header_text = pdf_content['header_text'].replace('\n', '<br/>')
+
+                # Header
+                logo_path = settings.BASE_DIR / 'static' / 'images' / 'fec-logo.png'
+                header_text = pdf_content.get('header_text', '').replace('\n', '<br/>')
                 header_para = Paragraph(header_text, header_style)
                 logo = RLImage(str(logo_path), width=2*inch, height=0.5*inch) if logo_path.exists() else Paragraph("FE CREDIT", title_style)
-                
-                # Use Table for header + logo
                 header_table = Table([[header_para, logo]], colWidths=[4*inch, 2*inch])
-                header_table.setStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                    ('ALIGN', (1,0), (1,0), 'RIGHT')
-                ])
+                header_table.setStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('ALIGN', (1,0), (1,0), 'RIGHT')])
                 Story.append(header_table)
                 Story.append(Spacer(1, 0.15 * inch))
-                
-                # Date right-aligned
+
+                # Ngày tháng
                 current_date = datetime.now()
                 date_str = f"TP.HCM, ngày {current_date.day} tháng {current_date.month} năm {current_date.year}"
                 Story.append(Paragraph(date_str, date_style))
                 Story.append(Spacer(1, 0.2 * inch))
-                
-                # Title
-                Story.append(Paragraph(pdf_content['title'], title_style))
+
+                # Tiêu đề
+                Story.append(Paragraph(pdf_content.get('title', 'VĂN BẢN XÁC NHẬN'), title_style))
                 Story.append(Spacer(1, 0.15 * inch))
-                
-                # Personal info
-                personal_info = pdf_content['personal_info_template'].format(
+
+                # Thông tin cá nhân & mở đầu
+                personal_info = pdf_content.get('personal_info_template', '').format(
                     full_name=customer.full_name,
                     id_card=customer.id_card,
                     formatted_phone=format_vn_phone(customer.phone_number)
                 ).replace('\n', '<br/>')
                 Story.append(Paragraph(personal_info, personal_style))
-                
-                # Intro text
-                intro = pdf_content['intro_text']
+
+                intro = pdf_content.get('intro_text', '').replace('\n', '<br/>')
                 Story.append(Paragraph(intro, normal_style))
                 Story.append(Spacer(1, 0.1 * inch))
-                
-                # 8) CÁC MỤC 1 → 7
+
+                # Nội dung 1→7
                 sections = [
                     pdf_content.get('section1', ''),
                     pdf_content.get('section2', ''),
@@ -342,62 +335,69 @@ def confirm_and_sign(request, customer_id):
                     pdf_content.get('section7', ''),
                 ]
                 for idx, sec in enumerate(sections, start=1):
-                    if not sec:
-                        continue
-                    sec_text = sec.replace('\n', '<br/>')
-                    Story.append(Paragraph(sec_text, normal_style))
+                    if sec:
+                        # Kết hợp số bold và nội dung normal trong cùng Paragraph
+                        combined_text = f"<font name='TimesNewRoman-Bold'>{idx}.</font> {sec.replace('\n', '<br/>')}"
+                        Story.append(Paragraph(combined_text, section_style))
 
-                    # Riêng mục 2 có các gạch đầu dòng
                     if idx == 2:
-                        # Tránh double bullet: chỉ thêm "• " nếu phần tử chưa có.
                         for item in pdf_content.get('bullets2', []):
                             txt = item.strip()
                             if not txt.startswith('•'):
                                 txt = '• ' + txt
                             Story.append(Paragraph(txt, bullet_style))
 
-                    # Riêng mục 5 có các tiểu mục a), b)...
                     if idx == 5:
                         for label, text in pdf_content.get('subsections5', {}).items():
-                            sub_text = f"{label}) {text}"
+                            sub_text = f"<font name='TimesNewRoman-Bold'>{label})</font> {text}"
                             Story.append(Paragraph(sub_text, bullet_style))
 
                     Story.append(Spacer(1, 0.06 * inch))
 
-                Story.append(Spacer(1, 0.25 * inch))
-                
-                # Embed signature at the end
+                # --- Chữ ký ---
                 if customer.signature:
-                    signature_path = customer.signature.path
-                    sig_img = RLImage(signature_path, width=2*inch, height=1*inch)  # Adjust size
-                    sig_img.hAlign = 'RIGHT'  # Align to right if needed
-                    Story.append(sig_img)
-                
-                # Build PDF
+                    # Spacer nhỏ phía trên chữ ký
+                    Story.append(Spacer(1, 0.08 * inch))
+
+                    # Ảnh chữ ký; dùng KeepInFrame để co nếu chật
+                    sig_img = RLImage(customer.signature.path, width=2.0*inch, height=0.9*inch)
+                    sig_img.hAlign = 'RIGHT'
+
+                    Story.append(
+                        KeepInFrame(
+                            maxWidth=doc.width,
+                            maxHeight=1.0 * inch,
+                            content=[sig_img],
+                            mode='shrink'
+                        )
+                    )
+
+                # Build
                 doc.build(Story)
-                
+
                 pdf_data = buffer.getvalue()
                 buffer.close()
-                
-                # Save PDF to FileField
+
+                # Lưu file
                 pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
                 customer.signature_document = pdf_file
                 customer.save()
-                
+
                 messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
                 return redirect('sign_done', customer_id=customer.id)
-            
+
             except Exception as e:
                 logger.error(f'Error in signing: {str(e)}')
-                messages.error(request, ' Có lỗi khi ký. Vui lòng thử lại.')
-    
+                messages.error(request, 'Có lỗi khi ký. Vui lòng thử lại.')
+
+    # GET hoặc lỗi
     context = {
         'customer': customer,
         'formatted_phone': format_vn_phone(customer.phone_number),
         'formatted_loan': format_vn_currency(customer.loan_amount),
         'formatted_income': format_vn_currency(customer.income),
         'formatted_monthly': format_vn_currency(customer.monthly_payment),
-    }            
+    }
     return render(request, 'userform/confirmation.html', context)
 
 def sign_done(request, customer_id:int):
