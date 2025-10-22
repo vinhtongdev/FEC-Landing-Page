@@ -1,3 +1,4 @@
+from datetime import datetime
 from io import BytesIO
 from urllib.parse import urlencode
 from django.shortcuts import get_object_or_404, render, redirect
@@ -25,6 +26,11 @@ from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, KeepTogether
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from svglib.svglib import svg2rlg
+import json
 
 
 logger = logging.getLogger(__name__)
@@ -48,20 +54,6 @@ def seconds_remaining(session) -> int:
 def generate_otp():
     return f"{random.randint(0, 999999):06d}"
 
-
-# def send_otp(phone, otp): # Twilio SMS
-#     try:
-#         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-#         messages = client.messages.create(
-#         body=f"Mã OTP của bạn là: {otp}",
-#         from_=settings.TWILIO_PHONE_NUMBER,
-#         to=phone
-#     )
-#         logger.info(f"OTP sent successfully. Message SID: {messages.sid}")
-#         return True
-#     except Exception as e:
-#         logger.error(f"Failed to send OTP to {phone}: {str(e)}")
-#         return False
     
 def send_otp(phone, otp): # South Telecom
     try:
@@ -271,33 +263,119 @@ def confirm_and_sign(request, customer_id):
                 customer.signature = data
                 customer.save()
                 
+                # Load text form JSON file
+                json_path = settings.BASE_DIR / 'userform' / 'helper' / 'pdf_content.json'
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    pdf_content = json.load(f)
+                
                 # Generate PDF with auto-fill and signed image
                 buffer = BytesIO()
-                p = canvas.Canvas(buffer, pagesize=A4)
-                width, height = A4
+                
+                # Use SimpleDocTemplate for multi-page PDF
+                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
                 
                 # Register font
-                font_path = 'fonts/NotoSans-Regular.ttf'
-                pdfmetrics.registerFont(TTFont('NotoSans', font_path))
+                font_regular_path = settings.BASE_DIR / 'fonts' / 'times.ttf'
+                font_bold_path    = settings.BASE_DIR / 'fonts' / 'timesbd.ttf'
+                pdfmetrics.registerFont(TTFont('TimesNewRoman', str(font_regular_path)))
+                pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', str(font_bold_path)))
+
+                # Styles
+                styles = getSampleStyleSheet()
+                header_style = ParagraphStyle('header', fontName='TimesNewRoman', fontSize=10, leading=13, alignment=0)  # Left
+                date_style = ParagraphStyle('date', fontName='TimesNewRoman', fontSize=10, leading=13, alignment=2)  # Right
+                title_style = ParagraphStyle('title', fontName='TimesNewRoman-Bold', fontSize=14, leading=18, alignment=1, spaceBefore=6, spaceAfter=16)  # Center, bold
+                normal_style = ParagraphStyle('normal', fontName='TimesNewRoman', fontSize=10, leading=14, alignment=0, spaceAfter=6)
+                section_num_style = ParagraphStyle('section_num', fontName='TimesNewRoman-Bold', fontSize=10, leading=14, spaceBefore=10)
+                bullet_style = ParagraphStyle('bullet', fontName='TimesNewRoman', fontSize=10, leading=14, leftIndent=16, firstLineIndent=-8, spaceAfter=2)
+                personal_style = ParagraphStyle('personal', fontName='TimesNewRoman', fontSize=10, leading=14, spaceAfter=8)
                 
-                # Set font
-                p.setFont("NotoSans", 12)
+                # Content list
+                Story = []
                 
-                # Auto fill text into PDF(Optional Positions)
-                p.drawString(100,height - 100, f"Họ tên: {customer.full_name}")
-                p.drawString(100, height - 120, f"Giới tính: {customer.get_gender_display()}")
-                p.drawString(100, height - 140, f"Số điện thoại: {customer.phone_number}")
-                p.drawString(100, height - 160, f"Ngày sinh: {customer.birth_date.strftime('%d/%m/%Y')}")
-                # ... (thêm các field khác tương tự)
-                p.drawString(100, height - 300, "Điều khoản: Bằng việc ký, tôi xác nhận... (thêm nội dung đầy đủ)")
+                # Thêm logo FECREDIT 
+                logo_path = settings.BASE_DIR / 'static' / 'images' / 'fec-logo.png'  # Giả định bạn có file
+                header_text = pdf_content['header_text'].replace('\n', '<br/>')
+                header_para = Paragraph(header_text, header_style)
+                logo = RLImage(str(logo_path), width=2*inch, height=0.5*inch) if logo_path.exists() else Paragraph("FE CREDIT", title_style)
                 
-                # embed signature image
-                signature_path = customer.signature.path # đường dẫn file tạm thời
-                img = Image.open(signature_path)
-                img_width, img_height = img.size
-                p.drawInlineImage(signature_path,100, height - 500, width=img_width*0.5, height=img_height*0.5) # scale 50%
+                # Use Table for header + logo
+                header_table = Table([[header_para, logo]], colWidths=[4*inch, 2*inch])
+                header_table.setStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                    ('ALIGN', (1,0), (1,0), 'RIGHT')
+                ])
+                Story.append(header_table)
+                Story.append(Spacer(1, 0.15 * inch))
                 
-                p.save()
+                # Date right-aligned
+                current_date = datetime.now()
+                date_str = f"TP.HCM, ngày {current_date.day} tháng {current_date.month} năm {current_date.year}"
+                Story.append(Paragraph(date_str, date_style))
+                Story.append(Spacer(1, 0.2 * inch))
+                
+                # Title
+                Story.append(Paragraph(pdf_content['title'], title_style))
+                Story.append(Spacer(1, 0.15 * inch))
+                
+                # Personal info
+                personal_info = pdf_content['personal_info_template'].format(
+                    full_name=customer.full_name,
+                    id_card=customer.id_card,
+                    formatted_phone=format_vn_phone(customer.phone_number)
+                ).replace('\n', '<br/>')
+                Story.append(Paragraph(personal_info, personal_style))
+                
+                # Intro text
+                intro = pdf_content['intro_text']
+                Story.append(Paragraph(intro, normal_style))
+                Story.append(Spacer(1, 0.1 * inch))
+                
+                # 8) CÁC MỤC 1 → 7
+                sections = [
+                    pdf_content.get('section1', ''),
+                    pdf_content.get('section2', ''),
+                    pdf_content.get('section3', ''),
+                    pdf_content.get('section4', ''),
+                    pdf_content.get('section5', ''),
+                    pdf_content.get('section6', ''),
+                    pdf_content.get('section7', ''),
+                ]
+                for idx, sec in enumerate(sections, start=1):
+                    if not sec:
+                        continue
+                    sec_text = sec.replace('\n', '<br/>')
+                    Story.append(Paragraph(sec_text, normal_style))
+
+                    # Riêng mục 2 có các gạch đầu dòng
+                    if idx == 2:
+                        # Tránh double bullet: chỉ thêm "• " nếu phần tử chưa có.
+                        for item in pdf_content.get('bullets2', []):
+                            txt = item.strip()
+                            if not txt.startswith('•'):
+                                txt = '• ' + txt
+                            Story.append(Paragraph(txt, bullet_style))
+
+                    # Riêng mục 5 có các tiểu mục a), b)...
+                    if idx == 5:
+                        for label, text in pdf_content.get('subsections5', {}).items():
+                            sub_text = f"{label}) {text}"
+                            Story.append(Paragraph(sub_text, bullet_style))
+
+                    Story.append(Spacer(1, 0.06 * inch))
+
+                Story.append(Spacer(1, 0.25 * inch))
+                
+                # Embed signature at the end
+                if customer.signature:
+                    signature_path = customer.signature.path
+                    sig_img = RLImage(signature_path, width=2*inch, height=1*inch)  # Adjust size
+                    sig_img.hAlign = 'RIGHT'  # Align to right if needed
+                    Story.append(sig_img)
+                
+                # Build PDF
+                doc.build(Story)
+                
                 pdf_data = buffer.getvalue()
                 buffer.close()
                 
@@ -305,7 +383,6 @@ def confirm_and_sign(request, customer_id):
                 pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
                 customer.signature_document = pdf_file
                 customer.save()
-
                 
                 messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
                 return redirect('sign_done', customer_id=customer.id)

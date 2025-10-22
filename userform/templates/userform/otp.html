@@ -6,12 +6,12 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Xác thực OTP</title>
     {% bootstrap_css %}
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/otp.css' %}">
     {% bootstrap_javascript %}
     <!-- JS riêng cho trang OTP -->
     <script defer src="{% static 'js/otp.js' %}"></script>
 
-    <style>
+    {% comment %} <style>
         body { background:#eef7ff; }
         .page-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
         .otp-card{
@@ -25,7 +25,7 @@
         }
         .actions{display:flex;gap:10px;}
         .actions .btn{flex:1;}
-    </style>
+    </style> {% endcomment %}
 </head>
 <body>
     <div class="page-wrap">
