@@ -2,7 +2,7 @@ from datetime import datetime
 from io import BytesIO
 from urllib.parse import urlencode
 from django.shortcuts import get_object_or_404, render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from reportlab.pdfgen import canvas
@@ -15,7 +15,7 @@ import requests
 import base64
 import logging
 import time
-from ..helper.utils import normalize_id, normalize_phone, session_safe, mask_phone
+from ..helper.utils import OTP_TTL, normalize_id, normalize_phone, otp_seconds_left, session_safe, mask_phone
 import base64
 import time
 from ..helper.utils import session_safe, mask_phone, format_vn_phone, format_vn_currency
@@ -108,11 +108,10 @@ def user_form(request):
                 request.session['user_data'] = cleaned
                 
                 otp = generate_otp() 
-                request.session['otp'] = str(otp)
-                
                 request.session['otp_phone'] = form.cleaned_data.get('phone_number')
                 
                 if send_otp(form.cleaned_data['phone_number'], otp):
+                    request.session['otp'] = str(otp)
                     request.session['otp_sent_at'] = int(time.time()) # Lưu thời điểm gửi
                     return redirect('verify_otp')
                 else:
@@ -140,27 +139,43 @@ def verify_otp(request):
 
     if request.method == 'POST':
         # Nếu bấm "Gửi lại"
-        if request.POST.get('action') == 'resend':
+        if request.method == 'POST' and request.POST.get('action') == 'resend':
+            is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
             if remaining > 0:
-                messages.warning(request, f"Vui lòng đợi {remaining}s rồi mới gửi lại mã.")
-            else:
-                otp = generate_otp()
-                
-                # Kiểm tra nếu bị rate-limit
-                if getattr(request, 'limited', False):
-                    messages.error(request, "Bạn đã gửi lại quá nhiều lần. Vui lòng thử lại sau.")
-                    return redirect('verify_otp')
-                
+                msg = f"Vui lòng đợi {remaining}s rồi mới gửi lại mã."
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'remaining': remaining, 'message': msg})
+                messages.warning(request, msg)
+                masked_phone = mask_phone(request.session.get('otp_phone'))
+                return render(request, 'userform/otp.html', {
+                    'form': OTPForm(),
+                    'remaining': remaining,
+                    'masked_phone': masked_phone,
+                })
+            # qua cooldown
+            if getattr(request, 'limited', False):
+                msg = "Bạn đã gửi lại quá nhiều lần. Vui lòng thử lại sau."
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'remaining': remaining, 'message': msg})
+                messages.error(request, msg)
+                return redirect('verify_otp')
+            
+            otp = generate_otp()
+            request.session['otp'] = str(otp)
+            phone = request.session.get('otp_phone')
+            ok = phone and send_otp(phone, otp)
+            if ok:
                 request.session['otp'] = str(otp)
-                phone = request.session.get('otp_phone')
-                if phone and send_otp(phone, otp):
-                    request.session['otp_sent_at'] = int(time.time())
-                    messages.success(request, "Đã gửi lại OTP.")
-                else:
-                    messages.error(request, "Gửi lại OTP thất bại. Vui lòng thử lại.")
+                request.session['otp_sent_at'] = int(time.time())
+                remaining = seconds_remaining(request.session)
+                if is_ajax:
+                    return JsonResponse({'ok': True, 'remaining': OTP_TTL, 'message': "Đã gửi lại OTP."})
+                messages.success(request, "Đã gửi lại OTP.")
+            else:
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'remaining': remaining, 'message': "Gửi lại OTP thất bại. Vui lòng thử."})
+                messages.error(request, "Gửi lại OTP thất bại. Vui lòng thử lại.")
                     
-            # Sau khi xử lý resend, tính lại remaining và render trang
-            remaining = seconds_remaining(request.session)
             masked_phone = mask_phone(request.session.get('otp_phone'))
             return render(request, 'userform/otp.html', {
                 'form': OTPForm(),
@@ -171,6 +186,15 @@ def verify_otp(request):
         # Submit OTP
         form = OTPForm(request.POST)
         if form.is_valid():
+            if otp_seconds_left(request.session) <= 0:
+                messages.error(request, "Mã OTP đã hết hạn. Vui lòng bấm Gửi lại.")
+                masked_phone = mask_phone(request.session.get('otp_phone'))
+                return render(request, 'userform/otp.html', {
+                    'form': OTPForm(),
+                    'remaining': otp_seconds_left(request.session),  # thường = 0
+                    'masked_phone': masked_phone,
+                })
+                
             if str(form.cleaned_data['otp']) == str(request.session.get('otp')):
                 user_data = request.session.get('user_data') or {}
 
@@ -337,7 +361,8 @@ def confirm_and_sign(request, customer_id):
                 for idx, sec in enumerate(sections, start=1):
                     if sec:
                         # Kết hợp số bold và nội dung normal trong cùng Paragraph
-                        combined_text = f"<font name='TimesNewRoman-Bold'>{idx}.</font> {sec.replace('\n', '<br/>')}"
+                        replaced_text = sec.replace('\n', '<br/>')
+                        combined_text = f"<font name='TimesNewRoman-Bold'>{idx}.</font> {replaced_text}"
                         Story.append(Paragraph(combined_text, section_style))
 
                     if idx == 2:

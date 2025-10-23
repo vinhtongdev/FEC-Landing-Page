@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import dj_database_url
 
 load_dotenv()
 
@@ -30,7 +31,7 @@ SECRET_KEY = 'django-insecure-@&#!()p7-^uvp$s&&ujc*2iphovx5x_kp7=1$i0i(+(h82+4uk
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.1.5', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -80,6 +81,11 @@ WSGI_APPLICATION = 'ITV_FEC_ICustomer.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+# DATABASES_URL = os.environ.get('DATABASE_URL', 'postgres://sa:itcom21@localhost:5432/i-cus')
+# DATABASES = {
+#     'default': dj_database_url.parse(DATABASES_URL)
+# }
 
 DATABASES = {
     'default': {
@@ -167,6 +173,9 @@ SOUTH_API_USER = os.environ.get('SOUTH_API_USER')
 SOUTH_API_PWD = os.environ.get('SOUTH_API_PWD')
 SOUTH_FROM = os.environ.get('SOUTH_FROM')
 SOUTH_API_URL = os.environ.get('SOUTH_API_URL')
+
+# OTP Resend Interval (seconds)
+OTP_TTL = 45
 
 LOGGING = {
     'version': 1,

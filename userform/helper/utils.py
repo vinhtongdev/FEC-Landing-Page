@@ -1,6 +1,10 @@
 from datetime import date, datetime
 from decimal import Decimal
 import re
+from django.conf import settings
+import time
+
+OTP_TTL = getattr(settings, 'OTP_TTL', 45)
 
 def session_safe(d: dict) -> dict:
     out = {}
@@ -45,3 +49,12 @@ def format_vn_currency(amount, currency='VND'):
         formatted =f'{int(amount):,}'.replace(',', '.')
         return f'{formatted} {currency}'
     return str(amount)
+
+def otp_seconds_left(session) -> int:
+    sent = session.get("otp_sent_at")
+    if not sent: return 0
+    try:
+        left = OTP_TTL - (int(time.time()) - int(sent))
+        return left if left > 0 else 0
+    except Exception:
+        raise 0
