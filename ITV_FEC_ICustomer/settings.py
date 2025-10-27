@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'userform',
+    'accounts',
+    'management',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
@@ -143,6 +145,11 @@ STATICFILES_DIRS = [BASE_DIR / 'userform' /'static']
 # Local Storage
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+AUTH_USER_MODEL = 'accounts.User'    # <<< quan trọng, đặt TRƯỚC migrate đầu tiên
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'management:dashboard'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
 # AWS S3 Storage
 # AWS_ACCESS_KEY_ID = 'your_key'
