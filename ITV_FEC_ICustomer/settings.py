@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'userform',
+    'management',
+    'accounts',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
@@ -155,6 +157,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'accounts.User'    # <<< quan trọng, đặt TRƯỚC migrate đầu tiên
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'management:dashboard'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'localhost'  
