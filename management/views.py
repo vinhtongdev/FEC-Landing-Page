@@ -1,15 +1,18 @@
-from django.shortcuts import render
+import mimetypes
+from pyexpat.errors import messages
+from django.shortcuts import get_object_or_404, redirect, render
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.db.models import Q
 from .forms import FilterForm
 from userform.models import CustomerInfo
 import csv
+from django.utils.encoding import smart_str
 
 staff_only = [login_required, user_passes_test(lambda u: u.is_staff)]
 
@@ -17,10 +20,14 @@ staff_only = [login_required, user_passes_test(lambda u: u.is_staff)]
 class DashboardListView(ListView):
     model = CustomerInfo
     template_name = 'management/dashboard.html'
+    
+    # danh sách đối tượng trong template
     context_object_name = 'rows'
+    
     paginate_by = 25
     ordering = ['-created_at']
 
+    #lấy danh sách các đối tượng cần hiển thị 
     def get_queryset(self):
         qs = CustomerInfo.objects.all().order_by('-created_at')
         self.form = FilterForm(self.request.GET or None)
@@ -54,6 +61,7 @@ class DashboardListView(ListView):
                 
         return qs 
     
+    # chuẩn bị và gửi thêm dữ liệu (context) tới file HTML template
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['form'] = getattr(self, 'form', FilterForm())
@@ -61,6 +69,8 @@ class DashboardListView(ListView):
         qd = self.request.GET.copy()
         qd.pop('page', None)
         ctx['querystring'] = qd.urlencode()
+        
+        # Trả về ctx (nay đã chứa rows, page_obj, form, và querystring) để Django render ra file HTML.
         return ctx
     
 @method_decorator(staff_only, name='dispatch')
@@ -95,3 +105,34 @@ def export_csv(request):
             ])
         return resp
         
+@staff_member_required
+def download_file(request, pk):
+    obj = get_object_or_404(CustomerInfo, pk=pk)
+    
+    if not obj.signature_document:
+        messages.warning(request, "Khách hàng này chưa có file PDF để tải.")
+        return redirect('management:dashboard')
+    try:
+        f = obj.signature_document
+        # open file ở chế độ nhị phân
+        file_handle = f.open('rb')
+        
+        # Đoán content type, fallback PDF
+        content_type = mimetypes.guess_type(f.name)[0] or 'application/pdf'
+        
+        # Trả stream về trình duyệt
+        resp = FileResponse(file_handle, content_type=content_type)
+        resp['Content-Disposition'] = f'attachment; filename="{smart_str(f"confirm_{obj.id}.pdf")}"'
+        
+        return resp
+        
+    except FileNotFoundError:
+        # FileField trỏ đến file không còn trên đĩa
+        messages.error(request, "Không tìm thấy file PDF trên máy chủ.")
+        return redirect('management:dashboard')
+    
+    except Exception as e:
+        messages.error(request, f"Lỗi tải file: {e}")
+        return redirect('management:dashboard')
+    
+    

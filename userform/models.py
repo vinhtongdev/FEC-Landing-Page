@@ -106,6 +106,7 @@ class CustomerInfo(models.Model):
     
     signature = models.ImageField(upload_to='signatures/', verbose_name='Chữ ký điện tử', null=True, blank=True)
     signature_document = models.FileField(upload_to='signed_docs/', verbose_name='Văn bản xác nhận đã ký', null=True, blank=True)
+
     
     created_at = models.DateTimeField(auto_now_add=True)
 
