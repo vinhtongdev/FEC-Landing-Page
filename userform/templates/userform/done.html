@@ -1,0 +1,41 @@
+{% load static django_bootstrap5 %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Hoàn tất ký xác nhận</title>
+    {% bootstrap_css %}
+</head>
+<body>
+<div class="container py-4">
+
+    {# Hiển thị flash messages #}
+    {% if messages %}
+        {% for m in messages %}
+        <div class="alert alert-{{ m.tags }} alert-dismissible fade show" role="alert">
+            {{ m }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title text-success mb-2">Ký thành công</h5>
+            <p class="mb-2">Văn bản xác nhận của bạn đã được lưu.</p>
+            <p class="mb-2"><strong>Khách hàng:</strong> {{ customer.full_name }}</p>
+            <p class="mb-3"><strong>Thời gian:</strong> {{ customer.created_at|date:"H:i d/m/Y" }}</p>
+
+            {% if customer.signature_document %}
+                <a class="btn btn-primary" href="{{ customer.signature_document.url }}" target="_blank" rel="noopener" download>Tải PDF</a>
+            {% else %}
+                <p class="text-warning">File PDF chưa sẵn sàng. Vui lòng thử lại sau.</p>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="{% url 'user_form' %}">Về trang đăng ký</a>
+        </div>
+    </div>
+</div>
+{% bootstrap_javascript %}
+</body>
+</html>

@@ -1,38 +1,70 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from django import forms
+
+from userform.helper.utils import normalize_id, normalize_phone
 from ..models import CustomerInfo
 from .widgets import PlaceholderSelect
 
 class CustomerInfoForm(forms.ModelForm):
+    birth_date = forms.DateField(
+        label='Ngày tháng năm sinh',
+        input_formats=['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'],
+        widget=forms.DateInput(
+            format='%d/%m/%Y',
+            attrs={
+                'class': 'form-control',
+                'type': 'text',           # nếu bạn muốn hiển thị dd/mm/yyyy
+                'placeholder': 'dd/mm/yyyy',
+                'autocomplete': 'off',
+                'inputmode': 'numeric',
+            }
+        ),
+        error_messages={
+            'required': 'Vui lòng nhập ngày sinh.',
+            'invalid': 'Ngày sinh không hợp lệ. Định dạng đúng: dd/mm/yyyy.',
+        }
+    )
     gender = forms.TypedChoiceField(
         label="Giới tính *",
         choices=CustomerInfo.GENDER_CHOICES,
-        widget=forms.RadioSelect,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
         coerce=str,
         empty_value=None,                    
         required=True,
+        error_messages={
+            'required': 'Vui lòng chọn giới tính.',
+        }
     )
     
     permanent_address = forms.ChoiceField(
         label='Nơi đăng ký thường trú *',
         choices=[('', 'Nơi đang sống')] + list(CustomerInfo.PROVINCES),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn nơi đang sống.',
+        }
     )
 
     work_status = forms.ChoiceField(
         label='Trạng thái công việc *',
         choices=[('', 'Chọn thông tin công việc của bạn')] + list(CustomerInfo.WORK_STATUS),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn trạng thái công việc.',
+        }
     )
 
     doc_provided = forms.ChoiceField(
         label='Chứng từ cung cấp *',
         choices=[('', 'Chứng từ có thể cung cấp')] + list(CustomerInfo.DOC_TYPES),
         required=True,
-        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'})
+        widget=PlaceholderSelect(attrs={'class': 'form-control placeholder-light'}),
+        error_messages={
+            'required': 'Vui lòng chọn chứng từ có thể cung cấp.',
+        }
     )
     class Meta:
         model = CustomerInfo
@@ -53,16 +85,13 @@ class CustomerInfoForm(forms.ModelForm):
             'loan_amount': 'Số tiền đăng ký *',
             'income': 'Thu nhập *',
             'monthly_payment': 'Tổng tiền trả góp hàng tháng *',
-            'agree_call': 'Tôi đồng ý nhận cuộc gọi từ CNEXT JSC về sản phẩm dịch vụ và đang đăng ký.',
-            'agree_policy': 'Tôi đã đọc và đồng ý với Chính sách bảo vệ dữ liệu cá nhân của CNEXT.',
-            'agree_vpb': 'Tôi đồng ý với VPB SMBC FC thu thập, xử lý thông tin, dữ liệu của tôi để phục vụ mục đích đánh giá, phê duyệt hồ sơ vay tín chấp tại VPB SMBC FC từ thời điểm nộp đơn đến khi website VPB SMBC FC thông báo kết quả.',
+            'agree_call': 'Tôi đồng ý nhận cuộc gọi từ IT-COMMUNICATIONS VIỆT NAM về sản phẩm dịch vụ và đang đăng ký.',
+            'agree_policy': 'Tôi đã đọc và đồng ý với Chính sách bảo vệ dữ liệu cá nhân của IT-COMMUNICATIONS VIỆT NAM.',
+            'agree_vpb': 'Bằng việc bấm nút "Xác nhận", Tôi đồng ý cho VPB SMBC FC thu thập, xử lý thông tin, dữ liệu cá nhân của Tôi theo Chính sách bảo mật và quyền riêng tư của VPB SMBC FC từng thời kỳ được đăng tải trên website cũng như theo Văn bản xác nhận',
         }
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ tên đầy đủ trên CCCD', 'required': True}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại di động'}),
-            'birth_date': forms.TextInput(
-                attrs={'class': 'form-control', 'placeholder': 'DD/MM/YYYY', 'id': 'id_birth_date'}
-            ),  
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại di động'}), 
             'id_card': forms.TextInput(attrs={'class': 'form-control','placeholder': 'Nhập 12 số CCCD gắn chip/Căn cước phôi mới'}),
             'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'min': 10000000, 'max': 100000000, 'placeholder': 'Số tiền đăng ký trả góp qua thẻ'}),
             'income': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Thu nhập của bạn'}),
@@ -71,14 +100,22 @@ class CustomerInfoForm(forms.ModelForm):
             'agree_policy': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'agree_vpb': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+        error_messages = {
+            'full_name': {'required': 'Vui lòng nhập họ tên.'},
+            'phone_number': {'required': 'Vui lòng nhập số điện thoại.'},
+            'id_card': {'required': 'Vui lòng nhập CCCD gắn chip/Căn cước.'},
+            'loan_amount': {'required': 'Vui lòng nhập số tiền đăng ký.'},
+            'income': {'required': 'Vui lòng nhập thu nhập.'},
+        }
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name, field in self.fields.items():
-            if field.required:
-                field.error_messages = {'required': f'Vui lòng nhập {self.fields[field_name].label.lower()}.'}
+        for f in self.fields.values():
+            f.error_messages.setdefault('invalid', 'Giá trị không hợp lệ.')
+            
+        for name, f in self.fields.items():
+            f.error_messages.setdefault('required', f'Vui lòng nhập {f.label.lower()}.')
                 
-        self.fields['birth_date'].input_formats = ['%d/%m/%Y']
             
         
     def clean(self):
@@ -117,12 +154,20 @@ class CustomerInfoForm(forms.ModelForm):
     
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number')
-        if phone and not phone.isdigit():
+        if not phone:
+            raise forms.ValidationError('Vui lòng nhập số điện thoại.')
+        
+        phone = normalize_phone(phone)
+        
+        if not phone.isdigit() or not phone.startswith('84') or len(phone) < 11:
             raise forms.ValidationError('Số điện thoại không hợp lệ.')
         return phone
     
     def clean_id_card(self):
-        id_card = self.cleaned_data.get('id_card')
+        id_card = self.cleaned_data.get('id_card', '')
+        
+        id_card = normalize_id(id_card)
+        
         if not id_card:
             raise forms.ValidationError('Vui lòng nhập CCCD/CMND/Căn cước.')
         if not id_card.isdigit() or len(id_card) !=12:

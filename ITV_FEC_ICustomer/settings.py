@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import dj_database_url
 
 load_dotenv()
 
@@ -30,7 +31,7 @@ SECRET_KEY = 'django-insecure-@&#!()p7-^uvp$s&&ujc*2iphovx5x_kp7=1$i0i(+(h82+4uk
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.1.5', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -42,18 +43,25 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'userform',
+    'userform.apps.UserformConfig',
+    'accounts',
+    'management',
     'django_bootstrap5',
+    'django_ratelimit',
+    'storages',
+    'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'ITV_FEC_ICustomer.urls'
@@ -68,6 +76,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n', 
             ],
         },
     },
@@ -75,9 +84,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ITV_FEC_ICustomer.wsgi.application'
 
+ASGI_APPLICATION = 'ITV_FEC_ICustomer.asgi.application'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+# DATABASES_URL = os.environ.get('DATABASE_URL', 'postgres://sa:itcom21@localhost:5432/i-cus')
+# DATABASES = {
+#     'default': dj_database_url.parse(DATABASES_URL)
+# }
 
 DATABASES = {
     'default': {
@@ -116,7 +137,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'vi'
+LANGUAGES = [('vi', 'Tiếng Việt')]
+USE_I18N = True
 
 TIME_ZONE = 'UTC'
 
@@ -128,8 +151,25 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'userform' /'static']
+
+# Local Storage
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+AUTH_USER_MODEL = 'accounts.User'    # <<< quan trọng, đặt TRƯỚC migrate đầu tiên
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'management:dashboard'
+LOGOUT_REDIRECT_URL = 'accounts:login'
+
+# AWS S3 Storage
+# AWS_ACCESS_KEY_ID = 'your_key'
+# AWS_SECRET_ACCESS_KEY = 'your_secret'
+# AWS_STORAGE_BUCKET_NAME = 'your-bucket'
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -147,6 +187,15 @@ EMAIL_HOST_PASSWORD = ''
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
+
+# Cấu hình South Telecom cho SMS OTP
+SOUTH_API_USER = os.environ.get('SOUTH_API_USER')
+SOUTH_API_PWD = os.environ.get('SOUTH_API_PWD')
+SOUTH_FROM = os.environ.get('SOUTH_FROM')
+SOUTH_API_URL = os.environ.get('SOUTH_API_URL')
+
+# OTP Resend Interval (seconds)
+OTP_TTL = 45
 
 LOGGING = {
     'version': 1,
@@ -166,3 +215,16 @@ LOGGING = {
         },
     },
 }
+
+# Config Cache with Redis
+# pip install django-redis
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1", # /1 để dùng database số 1 của Redis
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+

@@ -1,0 +1,51 @@
+ body {
+     background: #eef7ff;
+ }
+
+ .page-wrap {
+     min-height: 100vh;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     padding: 20px;
+ }
+
+ .otp-card {
+     width: 100%;
+     max-width: 420px;
+     background: #fff;
+     border: 0;
+     border-radius: 20px;
+     box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+     padding: 22px;
+ }
+
+ .otp-title {
+     color: #0ea5e9;
+     font-weight: 700;
+     text-align: center;
+     margin-bottom: 10px;
+ }
+
+ .hint {
+     color: #6b7280;
+     font-size: .95rem;
+     text-align: center;
+     margin-bottom: 14px;
+ }
+
+ .otp-input input {
+     letter-spacing: .2em;
+     text-align: center;
+     font-weight: 600;
+     padding: 12px 14px;
+ }
+
+ .actions {
+     display: flex;
+     gap: 10px;
+ }
+
+ .actions .btn {
+     flex: 1;
+ }
