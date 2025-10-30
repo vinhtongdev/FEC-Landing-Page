@@ -8,12 +8,6 @@
     <title>Dashboard khách hàng</title>
     {% bootstrap_css %}
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
-    <style>
-        body{background:#f5f8ff}
-        .wrap{max-width:1200px;margin:0 auto;padding:18px}
-        .card{border-radius:14px}
-        .table thead th{white-space:nowrap}
-    </style>
 </head>
 <body>
 <div class="wrap">
@@ -147,5 +141,35 @@
     </div>
 </div>
 {% bootstrap_javascript %}
+
+<script>
+    (function(){
+    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+    const ws = new WebSocket(proto + '://' + location.host + '/ws/dashboard/customers/');
+
+    function toast(msg){
+        const el = document.createElement('div');
+        el.className = 'alert alert-success position-fixed shadow';
+        el.style.right='16px'; el.style.bottom='16px'; el.style.zIndex=9999;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(()=> el.remove(), 3500);
+    }
+
+  
+    ws.onmessage = function(e){
+        try{
+        const m = JSON.parse(e.data || '{}');
+        toast(`Có khách mới: ${m.name || 'N/A'} ${m.phone ? '('+m.phone+')' : ''}`);
+        // Nếu đang ở trang 1 mới reload; tuỳ bạn
+        setTimeout(()=> location.reload(), 800);
+        }catch(err){ console.error(err); }
+    };
+
+    ws.onclose = function(){ /* có thể auto-reconnect nếu muốn */ };
+    })();
+
+</script>
+
 </body>
 </html>

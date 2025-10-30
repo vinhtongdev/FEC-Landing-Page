@@ -43,12 +43,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'userform',
+    'userform.apps.UserformConfig',
     'accounts',
     'management',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -83,6 +84,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ITV_FEC_ICustomer.wsgi.application'
 
+ASGI_APPLICATION = 'ITV_FEC_ICustomer.asgi.application'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
