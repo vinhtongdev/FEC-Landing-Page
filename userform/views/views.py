@@ -109,8 +109,10 @@ def user_form(request):
                 
                 otp = generate_otp() 
                 request.session['otp_phone'] = form.cleaned_data.get('phone_number')
-                
-                if send_otp(form.cleaned_data['phone_number'], otp):
+                # ok = send_otp(form.cleaned_data['phone_number'], otp)
+                ok = True
+                print("OTP: ", otp)
+                if ok:
                     request.session['otp'] = str(otp)
                     request.session['otp_sent_at'] = int(time.time()) # Lưu thời điểm gửi
                     return redirect('verify_otp')
@@ -163,7 +165,10 @@ def verify_otp(request):
             otp = generate_otp()
             request.session['otp'] = str(otp)
             phone = request.session.get('otp_phone')
-            ok = phone and send_otp(phone, otp)
+            # ok = phone and send_otp(phone, otp)
+            # TEST
+            print("OTP: ", otp)
+            ok = True
             if ok:
                 request.session['otp'] = str(otp)
                 request.session['otp_sent_at'] = int(time.time())

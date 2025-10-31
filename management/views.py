@@ -88,7 +88,11 @@ def export_csv(request):
         qs = view.get_queryset()
         
         resp = HttpResponse(content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename="customer_data.csv"'
+        resp['Content-Disposition'] = 'attachment; filename=customer_data.csv; filename*=UTF-8''{quote(filename)}'
+        
+        # BOM
+        resp.write(u'\ufeff'.encode('utf8'))
+        
         writer = csv.writer(resp)
         writer.writerow([
             'ID','Họ tên','Giới tính','SĐT','CCCD','Tỉnh/TP','Công việc',

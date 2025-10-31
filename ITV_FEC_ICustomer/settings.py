@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
-import os
+import os, platform
 import dj_database_url
 
 load_dotenv()
@@ -91,7 +91,19 @@ CHANNEL_LAYERS = {
         "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
     },
 }
+# settings.py
+# REDIS_URL = "redis://127.0.0.1:6379/0"  # ← cố định loopback
 
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [REDIS_URL],
+#             "capacity": 1500,
+#             "expiry": 10,
+#         },
+#     },
+# }
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -206,6 +218,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': 'debug.log',
         },
+        "console": {"class": "logging.StreamHandler"}
     },
     'loggers': {
         '': {
@@ -213,6 +226,8 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        "channels": {"handlers": ["console"], "level": "DEBUG"},
+        "django": {"handlers": ["console"], "level": "INFO"},
     },
 }
 

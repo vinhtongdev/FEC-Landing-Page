@@ -143,33 +143,81 @@
 {% bootstrap_javascript %}
 
 <script>
-    (function(){
-    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
-    const ws = new WebSocket(proto + '://' + location.host + '/ws/dashboard/customers/');
+    // Luôn có toast ở phạm vi global
+    (function () {
+    // Nếu đã có thì không ghi đè
+    if (window.toast) return;
 
-    function toast(msg){
+    window.toast = function(msg, ms = 3000) {
         const el = document.createElement('div');
         el.className = 'alert alert-success position-fixed shadow';
-        el.style.right='16px'; el.style.bottom='16px'; el.style.zIndex=9999;
+        el.style.right = '16px';
+        el.style.bottom = '16px';
+        el.style.zIndex = 9999;
         el.textContent = msg;
         document.body.appendChild(el);
-        setTimeout(()=> el.remove(), 3500);
-    }
+        setTimeout(() => el.remove(), ms);
+    };
+    })();
+</script>
 
-  
-    ws.onmessage = function(e){
-        try{
-        const m = JSON.parse(e.data || '{}');
-        toast(`Có khách mới: ${m.name || 'N/A'} ${m.phone ? '('+m.phone+')' : ''}`);
-        // Nếu đang ở trang 1 mới reload; tuỳ bạn
-        setTimeout(()=> location.reload(), 800);
-        }catch(err){ console.error(err); }
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws/dashboard/customers/`);
+
+    // fallback: nếu ai đó xoá toast, vẫn không crash
+    const notify = (m) => (window.toast ? window.toast(m) : alert(m));
+
+    ws.onmessage = (e) => {
+        let msg;
+        try { msg = JSON.parse(e.data); } catch { return; }
+
+        if (msg.kind === 'customer_created') {
+        notify(`Có khách mới: ${msg.name || msg.phone || ''}`);
+        prependRow(msg); // xem hàm dưới
+        // hoặc: location.reload();
+        } else if (msg.kind === 'error') {
+        console.error('WS server error:', msg.where, msg.detail);
+        notify('Realtime lỗi: ' + (msg.detail || ''));
+        }
     };
 
-    ws.onclose = function(){ /* có thể auto-reconnect nếu muốn */ };
-    })();
+    ws.onopen  = () => console.log('WS open');
+    ws.onclose = (e) => console.warn('WS closed:', e.code);
+    ws.onerror = (e) => console.error('WS error', e);
+    });
 
+    // Chèn dòng mới vào bảng thay vì reload
+    function prependRow(m) {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+
+    // Xoá dòng "Chưa có dữ liệu" nếu có
+    const empty = tbody.querySelector('td[colspan]');
+    if (empty && empty.parentElement) empty.parentElement.remove();
+
+    const esc = (v) => {
+        const d = document.createElement('div'); d.textContent = v ?? ''; return d.innerHTML;
+    };
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>•</td>
+        <td>${esc(m.name)}</td>
+        <td>${esc(m.gender)}</td>
+        <td>${esc(m.phone)}</td>
+        <td>${esc(m.citizen_id || '')}</td>
+        <td>${esc(m.province || '')}</td>
+        <td>${esc(m.income || '')}</td>
+        <td>${esc(m.loan || '')}</td>
+        <td>${esc(m.created_at || '')}</td>
+        <td>${m.has_pdf ? 'Có' : 'Không'}</td>
+    `;
+    tbody.prepend(tr);
+}
 </script>
+
 
 </body>
 </html>
