@@ -27,6 +27,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, KeepInFrame, CondPageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import json
+from django.db import transaction
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 logger = logging.getLogger(__name__)
@@ -482,6 +485,32 @@ def confirm_and_sign(request, customer_id):
                 pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
                 customer.signature_document = pdf_file
                 customer.save(update_fields=['signature_document'])
+
+                # !!! WS send event (chuyển xuống đây)
+                f = getattr(customer, "signature_document", None)
+                has_pdf = bool(f and getattr(f, "name", None))
+                payload = {
+                    "kind": "signature_confirmed",
+                    "id": customer.id,
+                    "full_name": customer.full_name or "",
+                    "gender_display": customer.get_gender_display(),
+                    "phone_number": customer.phone_number or "",
+                    "id_card": customer.id_card or "",
+                    "permanent_address_display": customer.get_permanent_address_display(),
+                    "income": int(customer.income or 0),
+                    "loan_amount": int(customer.loan_amount or 0),
+                    "created_at": customer.created_at.strftime("%H:%M %d/%m/%Y") if customer.created_at else "",
+                    "has_pdf": has_pdf,
+                    "pdf_download_url": reverse("management:download_file", args=[customer.id]) if has_pdf else None,
+                    "detail_url": reverse("management:customer_detail", args=[customer.id]),
+                }
+                
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    transaction.on_commit(lambda: async_to_sync(channel_layer.group_send)(
+                        "dashboard_customers",
+                        {"type": "add_message", "data": payload}
+                    ))
 
                 messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
                 return redirect('sign_done', customer_id=customer.id)
