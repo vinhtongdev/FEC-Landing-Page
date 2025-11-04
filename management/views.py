@@ -16,6 +16,11 @@ from django.utils.encoding import smart_str
 
 staff_only = [login_required, user_passes_test(lambda u: u.is_staff)]
 
+def is_manage(user):
+    return user.is_active and user.groups.filter(name="manage").exists()
+
+# @login_required(login_url='login')                # hoặc đường dẫn login của bạn
+# @user_passes_test(is_manager)                     # chỉ nhóm 'manage' mới vào được
 @method_decorator(staff_only, name='dispatch')
 class DashboardListView(ListView):
     model = CustomerInfo

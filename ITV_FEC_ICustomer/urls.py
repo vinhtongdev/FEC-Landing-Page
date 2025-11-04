@@ -11,7 +11,8 @@ urlpatterns = [
     path('', user_form, name='user_form'),
     path('', include('userform.urls')),
     path('verify/', verify_otp, name='verify_otp'),
-    path('dashboard/', include(('management.urls', 'management'), namespace='management'))
+    path('dashboard/', include(('management.urls', 'management'), namespace='management')),
+    path("reports/", include("report.urls", namespace="report")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

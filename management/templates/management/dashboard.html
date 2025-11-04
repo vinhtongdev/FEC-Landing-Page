@@ -19,6 +19,10 @@
                 <span class='me-3 text-muted small'>Xin chào,  {{ request.user.get_full_name|default:request.user.email }}</span>
             {% endif %}
             
+            {% if request.user.is_authenticated and perms.report.view_reports %}
+            <a class="btn btn-primary me-2" href="{% url 'report:dashboard' %}">Reports</a>
+            {% endif %}
+            
             {% if request.user.is_authenticated and request.user.is_superuser %}
             <a class="btn btn-outline-secondary me-2" href="{% url 'admin:index' %}" target="_blank">Admin</a>
             {% endif %}

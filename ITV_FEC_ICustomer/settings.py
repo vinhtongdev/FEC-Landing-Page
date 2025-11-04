@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'userform.apps.UserformConfig',
     'accounts',
     'management',
+    'report',
+    'webstats',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
@@ -61,7 +63,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
+    'webstats.middleware.PageViewMiddleware',
 ]
 
 ROOT_URLCONF = 'ITV_FEC_ICustomer.urls'
