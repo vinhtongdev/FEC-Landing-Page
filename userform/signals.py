@@ -33,10 +33,6 @@ def customer_created_notify(sender, instance, created, **kwargs):
         "has_pdf": has_pdf,
         "pdf_download_url": reverse("management:download_file", args=[instance.id]) if has_pdf else None,
         "detail_url": reverse("management:customer_detail", args=[instance.id]),
-        # (tuỳ chọn) GIỮ TƯƠNG THÍCH NGƯỢC với JS cũ:
-        # "name": instance.full_name or "",
-        # "phone": instance.phone_number or "",
-        # "loan": int(instance.loan_amount or 0),
     }
 
     async_to_sync(channel_layer.group_send)(
