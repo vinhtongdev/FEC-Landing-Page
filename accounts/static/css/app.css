@@ -1,0 +1,17 @@
+body {
+    background: #f5f8ff
+}
+
+.wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 18px
+}
+
+.card {
+    border-radius: 14px
+}
+
+.form-text.mini {
+    font-size: .85rem
+}

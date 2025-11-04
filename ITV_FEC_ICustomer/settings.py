@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
-import os
+import os, platform
 import dj_database_url
 
 load_dotenv()
@@ -43,20 +43,25 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'userform',
+    'userform.apps.UserformConfig',
+    'accounts',
+    'management',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
+    'channels',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'ITV_FEC_ICustomer.urls'
@@ -71,6 +76,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n', 
             ],
         },
     },
@@ -78,7 +84,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ITV_FEC_ICustomer.wsgi.application'
 
+ASGI_APPLICATION = 'ITV_FEC_ICustomer.asgi.application'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    },
+}
+# settings.py
+# REDIS_URL = "redis://127.0.0.1:6379/0"  # ← cố định loopback
 
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [REDIS_URL],
+#             "capacity": 1500,
+#             "expiry": 10,
+#         },
+#     },
+# }
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -124,7 +149,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'vi'
+LANGUAGES = [('vi', 'Tiếng Việt')]
+USE_I18N = True
 
 TIME_ZONE = 'UTC'
 
@@ -143,6 +170,11 @@ STATICFILES_DIRS = [BASE_DIR / 'userform' /'static']
 # Local Storage
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+AUTH_USER_MODEL = 'accounts.User'    # <<< quan trọng, đặt TRƯỚC migrate đầu tiên
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'management:dashboard'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
 # AWS S3 Storage
 # AWS_ACCESS_KEY_ID = 'your_key'
@@ -186,6 +218,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': 'debug.log',
         },
+        "console": {"class": "logging.StreamHandler"}
     },
     'loggers': {
         '': {
@@ -193,6 +226,8 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        "channels": {"handlers": ["console"], "level": "DEBUG"},
+        "django": {"handlers": ["console"], "level": "INFO"},
     },
 }
 
