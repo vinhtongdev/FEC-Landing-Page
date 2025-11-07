@@ -3,8 +3,8 @@
 # Chạy migration
 python manage.py migrate
 
-# Tạo superuser 
+# Tạo superuser (uncomment nếu cần)
 # python manage.py createsuperuser --noinput
 
-# Chạy gunicorn
-exec gunicorn --bind 0.0.0.0:8000 ITV_FEC_ICustomer.wsgi:application
+# Chạy Daphne cho ASGI (hỗ trợ WebSocket)
+exec daphne -b 0.0.0.0 -p 8000 ITV_FEC_ICustomer.asgi:application

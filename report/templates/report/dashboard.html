@@ -1,0 +1,71 @@
+{% load static django_bootstrap5 %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <title>Reports</title>
+    {% bootstrap_css %}<link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% bootstrap_javascript %}
+    <style>
+        .wrap{max-width:1200px;margin:0 auto;padding:18px}
+        .grid{display:grid;grid-template-columns:1fr;gap:18px}
+        @media(min-width:992px){ .grid{grid-template-columns:1fr 1fr} }
+        .card{border-radius:14px}
+        canvas{max-height:360px}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+    <h3 class="text-primary mb-3">Báo cáo đăng ký & lượt ghé</h3>
+    <div class="grid">
+        <div class="card p-3">
+        <h6 class="mb-2">Đăng ký theo ngày</h6>
+        <canvas id="regDaily"></canvas>
+        </div>
+        <div class="card p-3">
+        <h6 class="mb-2">Đăng ký theo tháng</h6>
+        <canvas id="regMonthly"></canvas>
+        </div>
+        <div class="card p-3">
+        <h6 class="mb-2">Đăng ký theo quý</h6>
+        <canvas id="regQuarterly"></canvas>
+        </div>
+        <div class="card p-3">
+        <h6 class="mb-2">Lượt ghé theo ngày</h6>
+        <canvas id="vDaily"></canvas>
+        </div>
+        <div class="card p-3">
+        <h6 class="mb-2">Lượt ghé theo tháng</h6>
+        <canvas id="vMonthly"></canvas>
+        </div>
+        <div class="card p-3">
+        <h6 class="mb-2">Lượt ghé theo quý</h6>
+        <canvas id="vQuarterly"></canvas>
+        </div>
+    </div>
+</div>
+<script>
+async function loadChart(canvasId, url, label){
+    const el = document.getElementById(canvasId);
+    const res = await fetch(url, {headers: {"X-Requested-With":"XMLHttpRequest"}});
+    const data = await res.json();
+    new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: {
+        labels: data.labels,
+        datasets: [{label, data: data.values, tension:.25}]
+        },
+        options: {responsive:true, maintainAspectRatio:false}
+    });
+}
+loadChart('regDaily',     '{% url "report:api_reg_daily" %}',     'Đăng ký');
+loadChart('regMonthly',   '{% url "report:api_reg_monthly" %}',   'Đăng ký');
+loadChart('regQuarterly', '{% url "report:api_reg_quarterly" %}', 'Đăng ký');
+
+loadChart('vDaily',       '{% url "report:api_visits_daily" %}',     'Lượt ghé');
+loadChart('vMonthly',     '{% url "report:api_visits_monthly" %}',   'Lượt ghé');
+loadChart('vQuarterly',   '{% url "report:api_visits_quarterly" %}', 'Lượt ghé');
+</script>
+</body>
+</html>

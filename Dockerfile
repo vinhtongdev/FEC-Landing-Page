@@ -1,5 +1,6 @@
 # Sử dụng image Python chính thức
-FROM python:3.10-slim
+# Upgrade from 3.10 to 3.12 to support autobahn 25.x
+FROM python:3.12-slim
 
 # Thiết lập biến môi trường
 ENV PYTHONUNBUFFERED=1
@@ -9,12 +10,22 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN mkdir /app
 WORKDIR /app
 
-# Cài các gói cần thiết (cho psycopg2 nếu dùng PostgreSQL)
+# Cài các gói cần thiết (mở rộng cho psycopg2, rdkit, pyscf, qutip, v.v.)
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     libpq-dev \
     python3-dev \
-    && apt-get clean
+    libblas-dev \
+    liblapack-dev \
+    libboost-python1.83-dev \
+    libboost-serialization1.83-dev \
+    libcairo2-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    pkg-config \
+    cmake \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Sao chép requirements.txt và cài gói
 COPY requirements.txt /app/
@@ -26,5 +37,5 @@ COPY . /app/
 # Thu thập static files (nếu có)
 RUN python manage.py collectstatic --noinput
 
-# Chạy entrypoint.sh
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "ITV_FEC_ICustomer.wsgi:application"]
+# Chạy Daphne cho ASGI (hỗ trợ WebSocket)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "ITV_FEC_ICustomer.asgi:application"]

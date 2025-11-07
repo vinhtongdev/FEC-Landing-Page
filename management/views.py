@@ -16,6 +16,11 @@ from django.utils.encoding import smart_str
 
 staff_only = [login_required, user_passes_test(lambda u: u.is_staff)]
 
+def is_manage(user):
+    return user.is_active and user.groups.filter(name="manage").exists()
+
+# @login_required(login_url='login')                # hoặc đường dẫn login của bạn
+# @user_passes_test(is_manager)                     # chỉ nhóm 'manage' mới vào được
 @method_decorator(staff_only, name='dispatch')
 class DashboardListView(ListView):
     model = CustomerInfo
@@ -88,7 +93,11 @@ def export_csv(request):
         qs = view.get_queryset()
         
         resp = HttpResponse(content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename="customer_data.csv"'
+        resp['Content-Disposition'] = 'attachment; filename=customer_data.csv; filename*=UTF-8''{quote(filename)}'
+        
+        # BOM
+        resp.write(u'\ufeff'.encode('utf8'))
+        
         writer = csv.writer(resp)
         writer.writerow([
             'ID','Họ tên','Giới tính','SĐT','CCCD','Tỉnh/TP','Công việc',

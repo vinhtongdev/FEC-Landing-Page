@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
-import os
+import os, platform
 import dj_database_url
 
 load_dotenv()
@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'userform.apps.UserformConfig',
     'accounts',
     'management',
+    'report',
+    'webstats',
     'django_bootstrap5',
     'django_ratelimit',
     'storages',
@@ -54,6 +56,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
@@ -61,7 +64,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
+    'webstats.middleware.PageViewMiddleware',
 ]
 
 ROOT_URLCONF = 'ITV_FEC_ICustomer.urls'
@@ -152,8 +155,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'userform' /'static']
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+    BASE_DIR / 'userform' /'static'
+    ]
 
 # Local Storage
 MEDIA_URL = "/media/"
@@ -206,6 +213,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': 'debug.log',
         },
+        "console": {"class": "logging.StreamHandler"}
     },
     'loggers': {
         '': {
@@ -213,6 +221,8 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        "channels": {"handlers": ["console"], "level": "DEBUG"},
+        "django": {"handlers": ["console"], "level": "INFO"},
     },
 }
 

@@ -3,16 +3,20 @@ version: '3.8'
 services:
   web:
     build: .
-    command: bash -c "python manage.py migrate && gunicorn --bind 0.0.0.0:8000 ITV_FEC_ICustomer.wsgi:application"
+    command: bash -c "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 ITV_FEC_ICustomer.asgi:application"
     volumes:
       - .:/app
     ports:
       - "8283:8000"  # Map port 8283 (host) sang 8000 (container)
     environment:
       - DEBUG=0
-      - DATABASE_URL=postgres://sa:itcom21@i-cus:5432/i-cus  # Nếu dùng PostgreSQL
+      - DATABASE_URL=postgres://sa:itcom21@db:5432/i-cus  # Sửa host thành 'db' (tên service)
+      - REDIS_URL=redis://redis:6379/1  # Kết nối đến service redis
+      - DJANGO_SUPERUSER_EMAIL=vinhtong.dev@gmail.com  # Thêm: email superuser
+      - DJANGO_SUPERUSER_PASSWORD=Vinhtong2010   # Thêm: mật khẩu (thay bằng giá trị thực, mạnh)
     depends_on:
       - db
+      - redis
 
   db:
     image: postgres:13
@@ -23,5 +27,13 @@ services:
       - POSTGRES_USER=sa
       - POSTGRES_PASSWORD=itcom21
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"  # Optional: expose cho debug, có thể bỏ nếu không cần
+    volumes:
+      - redis_data:/data
+
 volumes:
   postgres_data:
+  redis_data:

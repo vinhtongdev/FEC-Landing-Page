@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 
 from django.contrib import admin
 from django.urls import path, include
-from userform.views.views import user_form, verify_otp
+from userform.views.views import user_form, verify_otp, consent_info
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -11,7 +11,9 @@ urlpatterns = [
     path('', user_form, name='user_form'),
     path('', include('userform.urls')),
     path('verify/', verify_otp, name='verify_otp'),
-    path('dashboard/', include(('management.urls', 'management'), namespace='management'))
+    path('dashboard/', include(('management.urls', 'management'), namespace='management')),
+    path("reports/", include("report.urls", namespace="report")),
+    path('consent/', consent_info, name='consent_info'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

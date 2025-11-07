@@ -3,6 +3,8 @@ from decimal import Decimal
 import re
 from django.conf import settings
 import time
+from xml.sax.saxutils import escape
+from reportlab.platypus import Paragraph
 
 OTP_TTL = getattr(settings, 'OTP_TTL', 45)
 
@@ -58,3 +60,15 @@ def otp_seconds_left(session) -> int:
         return left if left > 0 else 0
     except Exception:
         raise 0
+    
+def make_checkbox_paragraph(text: str, checked: bool, base_style):
+    """
+    Tạo Paragraph có symbol ☑/☐ (DejaVuSans) + chữ (TimesNewRoman).
+    """
+    sym = '☑' if checked else '☐'
+    safe_text = escape(text or "")
+    html = (
+        f"<font name='DejaVuSans'>{sym}</font> "
+        f"<font name='TimesNewRoman'>{safe_text}</font>"
+    )
+    return Paragraph(html, base_style)
