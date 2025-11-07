@@ -53,6 +53,12 @@ def seconds_remaining(session) -> int:
 def generate_otp():
     return f"{random.randint(0, 999999):06d}"
 
+def consent_info(request):
+    json_path = settings.BASE_DIR / "userform" / "helper" / "pdf_content.json"
+    with open(json_path, "r", encoding="utf-8") as f:
+        pdf_content = json.load(f)
+        
+        return render(request, "userform/consent_info.html", {'pdf': pdf_content})
     
 def send_otp(phone, otp): # South Telecom
     try:

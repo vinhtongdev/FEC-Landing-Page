@@ -1,4 +1,4 @@
-{% load django_bootstrap5 %}
+{% load static django_bootstrap5 fec_filters %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -15,15 +15,15 @@
         <h4 class="text-primary">{{ c.full_name }}</h4>
         <div class="row g-3">
             <div class="col-md-6"><b>Giới tính:</b> {{ c.get_gender_display }}</div>
-            <div class="col-md-6"><b>SĐT:</b> {{ c.phone_number }}</div>
+            <div class="col-md-6"><b>SĐT:</b> {{ c.phone_number|phone_vn }}</div>
             <div class="col-md-6"><b>CCCD:</b> {{ c.id_card }}</div>
             <div class="col-md-6"><b>Ngày sinh:</b> {{ c.birth_date|date:"d/m/Y" }}</div>
             <div class="col-md-6"><b>Tỉnh/TP:</b> {{ c.get_permanent_address_display }}</div>
             <div class="col-md-6"><b>Công việc:</b> {{ c.get_work_status_display }}</div>
             <div class="col-md-6"><b>Chứng từ:</b> {{ c.get_doc_provided_display }}</div>
-            <div class="col-md-6"><b>Thu nhập:</b> {{ c.income|floatformat:0 }}</div>
-            <div class="col-md-6"><b>Đăng ký:</b> {{ c.loan_amount|floatformat:0 }}</div>
-            <div class="col-md-6"><b>Trả góp/tháng:</b> {{ c.monthly_payment|default_if_none:"0"|floatformat:0 }}</div>
+            <div class="col-md-6"><b>Thu nhập:</b> {{ c.income|money_vn }}</div>
+            <div class="col-md-6"><b>Đăng ký:</b> {{ c.loan_amount|money_vn }}</div>
+            <div class="col-md-6"><b>Trả góp/tháng:</b> {{ c.monthly_payment|default_if_none:"0"|money_vn }}</div>
             <div class="col-md-6"><b>Tạo lúc:</b> {{ c.created_at|date:"H:i d/m/Y" }}</div>
         </div>
         </div>
