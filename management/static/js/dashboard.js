@@ -16,44 +16,71 @@
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
-		const proto = location.protocol === "https:" ? "wss" : "ws";
-		const ws = new WebSocket(
-			`${proto}://${location.host}/ws/dashboard/customers/`
-		);
+	const proto = location.protocol === "https:" ? "wss" : "ws";
+	const ws = new WebSocket(`${proto}://${location.host}/ws/hub/`);
 
-		// fallback: nếu ai đó xoá toast, vẫn không crash
-		const notify = (m) => (window.toast ? window.toast(m) : alert(m));
+	const notify = (m) => (window.toast ? window.toast(m) : alert(m));
+	const toast = window.toast || ((m) => console.log("[toast]", m));
 
-		ws.onmessage = (e) => {
-			let msg;
-			try {
-				msg = JSON.parse(e.data);
-			} catch {
-				return;
-			}
+	ws.onopen = () => console.log("WS open (hub)");
+	ws.onclose = (e) => console.warn("WS closed:", e.code);
+	ws.onerror = (e) => console.error("WS error", e);
 
-			if (
-				msg.kind === "customer_created" ||
-				msg.kind === "signature_confirmed"
-			) {
-				updateOrPrependRow(msg);
-				if (window.toast)
-					toast(
-						msg.kind === "customer_created"
-							? `Có khách mới: ${
-									msg.full_name || msg.phone_number || ""
-							}`
-							: `KHÁCH ĐÃ KÝ: ${msg.full_name || msg.phone_number || ""}`
-					);
-			} else if (msg.kind === "error") {
+	ws.onmessage = (e) => {
+
+		let msg;
+		try {
+			msg = JSON.parse(e.data);
+		} catch {
+			return;
+		}
+
+		switch (msg.kind) {
+			// === Dashboard events ===
+			case "customer_created":
+			case "signature_confirmed":
+				if (typeof updateOrPrependRow === "function") {
+					updateOrPrependRow(msg);
+				}
+				toast(
+					msg.kind === "customer_created"
+						? `Có khách mới: ${msg.full_name || msg.phone_number || ""}`
+						: `KHÁCH ĐÃ KÝ: ${msg.full_name || msg.phone_number || ""}`
+				);
+				break;
+
+			// === Manager approval events (mã 6 số) ===
+			case "approve_request":
+				// Hiển thị toast/modal để Manager thấy mã phê duyệt
+				// Bạn có thể gọi showManagerApprovalToast(msg) nếu đã có UI toast riêng
+				const html = `
+                <div class="alert alert-info alert-dismissible fade show"
+                    role="alert"
+                    style="position:fixed;right:12px;bottom:12px;z-index:2000;max-width:360px">
+                    <div><strong>Yêu cầu phê duyệt</strong></div>
+                    <div>KH: ${msg.customer_name} (#${msg.customer_id})</div>
+                    <div>Mã: <b>${msg.code}</b></div>
+                    <div class="small text-muted">Hết hạn: ${new Date(
+								msg.expires_at
+							).toLocaleString()}</div>
+                    <div class="small text-muted">Yêu cầu bởi: ${
+								msg.requested_by
+							}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+				document.body.insertAdjacentHTML("beforeend", html);
+				break;
+
+			case "ws_ready":
+				// tuỳ chọn: đánh dấu sẵn sàng
+				break;
+
+			case "error":
 				console.error("WS server error:", msg.where, msg.detail);
 				notify("Realtime lỗi: " + (msg.detail || ""));
-			}
-		};
-
-		ws.onopen = () => console.log("WS open");
-		ws.onclose = (e) => console.warn("WS closed:", e.code);
-		ws.onerror = (e) => console.error("WS error", e);
+				break;
+		}
+	};
 });
 
  // Chèn dòng mới vào bảng thay vì reload

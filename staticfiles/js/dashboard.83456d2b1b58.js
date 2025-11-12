@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	ws.onerror = (e) => console.error("WS error", e);
 
 	ws.onmessage = (e) => {
-
+		console.log("WS msg:", e.data);
 		let msg;
 		try {
 			msg = JSON.parse(e.data);
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				break;
 
 			// === Manager approval events (mã 6 số) ===
-			case "approve_request":
+			case "approval_request":
 				// Hiển thị toast/modal để Manager thấy mã phê duyệt
 				// Bạn có thể gọi showManagerApprovalToast(msg) nếu đã có UI toast riêng
 				const html = `

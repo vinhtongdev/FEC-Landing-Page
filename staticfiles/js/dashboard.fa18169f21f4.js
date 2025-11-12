@@ -17,7 +17,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
 	const proto = location.protocol === "https:" ? "wss" : "ws";
-	const ws = new WebSocket(`${proto}://${location.host}/ws/hub/`);
+	const ws = new WebSocket(`${proto}://${location.host}/ws/hub/`); // <— gộp vào Hub
 
 	const notify = (m) => (window.toast ? window.toast(m) : alert(m));
 	const toast = window.toast || ((m) => console.log("[toast]", m));
@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	ws.onerror = (e) => console.error("WS error", e);
 
 	ws.onmessage = (e) => {
-
 		let msg;
 		try {
 			msg = JSON.parse(e.data);
@@ -50,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				break;
 
 			// === Manager approval events (mã 6 số) ===
-			case "approve_request":
+			case "approval_request":
 				// Hiển thị toast/modal để Manager thấy mã phê duyệt
 				// Bạn có thể gọi showManagerApprovalToast(msg) nếu đã có UI toast riêng
 				const html = `
@@ -61,11 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div>KH: ${msg.customer_name} (#${msg.customer_id})</div>
                     <div>Mã: <b>${msg.code}</b></div>
                     <div class="small text-muted">Hết hạn: ${new Date(
-								msg.expires_at
-							).toLocaleString()}</div>
-                    <div class="small text-muted">Yêu cầu bởi: ${
-								msg.requested_by
-							}</div>
+                            msg.expires_at
+                        ).toLocaleString()}</div>
+                    <div class="small text-muted">Yêu cầu bởi: ${msg.requested_by}</div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>`;
 				document.body.insertAdjacentHTML("beforeend", html);

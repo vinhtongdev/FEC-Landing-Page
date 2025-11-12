@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	ws.onerror = (e) => console.error("WS error", e);
 
 	ws.onmessage = (e) => {
-
+		console.log("WS msg:", e.data);
 		let msg;
 		try {
 			msg = JSON.parse(e.data);
