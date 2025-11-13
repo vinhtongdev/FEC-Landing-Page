@@ -23,3 +23,7 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
     
+    @property
+    def is_manage(self):
+        return self.is_active and self.groups.filter(name='manage').exists()
+    

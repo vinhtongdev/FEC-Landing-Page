@@ -1,0 +1,86 @@
+{% load django_bootstrap5 %}
+
+<div class="modal-header">
+    <h5 class="modal-title">Chỉnh sửa: {{ form.instance.full_name|default:'Khách hàng' }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+</div>
+
+<form id="edit-form" method="post" action="{{ action_url|default:'' }}" class="modal-body">
+    <input type="hidden" name="id" value="{{ form.instance.pk }}">
+    {% csrf_token %}
+
+    <div class="row g-3">
+        <div class="col-12 col-md-8">
+        {% bootstrap_field form.full_name show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-4">
+        {% bootstrap_field form.gender show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {% bootstrap_field form.phone_number show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {# nếu bạn muốn dùng <input type="date"> thì set widget type trong forms.py #}
+        {% bootstrap_field form.birth_date show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {% bootstrap_field form.id_card show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {% bootstrap_field form.permanent_address show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {% bootstrap_field form.work_status show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-6">
+        {% bootstrap_field form.doc_provided show_label=True %}
+        </div>
+
+        <div class="col-12 col-md-4">
+        {% bootstrap_field form.loan_amount show_label=True %}
+        </div>
+        <div class="col-12 col-md-4">
+        {% bootstrap_field form.income show_label=True %}
+        </div>
+        <div class="col-12 col-md-4">
+        {% bootstrap_field form.monthly_payment show_label=True %}
+        </div>
+
+        <div class="col-12">
+        <div class="form-check form-check-inline">
+            {{ form.agree_call }}
+            <label class="form-check-label ms-1" for="{{ form.agree_call.id_for_label }}">
+            {{ form.fields.agree_call.label }}
+            </label>
+        </div>
+        <div class="form-check form-check-inline">
+            {{ form.agree_policy }}
+            <label class="form-check-label ms-1" for="{{ form.agree_policy.id_for_label }}">
+            {{ form.fields.agree_policy.label }}
+            </label>
+        </div>
+        <div class="form-check form-check-inline">
+            {{ form.agree_vpb }}
+            <label class="form-check-label ms-1" for="{{ form.agree_vpb.id_for_label }}">
+            {{ form.fields.agree_vpb.label }}
+            </label>
+        </div>
+        {# Hiển thị lỗi form-level #}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-2 mb-0">{{ form.non_field_errors }}</div>
+        {% endif %}
+        </div>
+    </div>
+</form>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+    <button type="button" id="btn-save-customer" class="btn btn-primary">Lưu</button>  {# Sửa: thêm ID, xóa class btn-edit, đổi type=button #}
+</div>

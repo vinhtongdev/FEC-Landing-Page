@@ -6,10 +6,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Dashboard khách hàng</title>
-    {% bootstrap_css %}
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
     <script defer src="{% static 'js/dashboard.js' %}"></script>
-</head>
+    <script defer src="{% static 'js/dashboard_edit.js' %}"></script>
+        {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+</head> 
 <body>
 <div class="wrap">
     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -17,6 +21,10 @@
         <div>
             {% if request.user.is_authenticated %}
                 <span class='me-3 text-muted small'>Xin chào,  {{ request.user.get_full_name|default:request.user.email }}</span>
+            {% endif %}
+            
+            {% if request.user.is_authenticated and perms.report.view_reports %}
+            <a class="btn btn-primary me-2" href="{% url 'report:dashboard' %}">Reports</a>
             {% endif %}
             
             {% if request.user.is_authenticated and request.user.is_superuser %}
@@ -80,6 +88,7 @@
                 <th>Tạo lúc</th>
                 <th class="text-center">PDF</th>
                 <th></th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -108,6 +117,10 @@
                     {% endif %}
                 </td>
                 <td><a class="btn btn-sm btn-outline-primary" href="{% url 'management:customer_detail' r.pk %}">Chi tiết</a></td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary btn-edit" data-id="{{ r.id }}">Chỉnh sửa</button>
+                </td>
+
             </tr>
             {% empty %}
             <tr><td colspan="10" class="text-center text-muted py-4">Chưa có dữ liệu</td></tr>
@@ -141,6 +154,37 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Modal edit -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" id="editModalContent"></div>
+    </div>
+</div>
+
+<!-- Modal nhập mã 6 số -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+        <div class="modal-header">
+            <h5 class="modal-title">Xác nhận từ Quản lý</h5>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted">Nhập mã 6 số do Quản lý cung cấp để lưu thay đổi.</p>
+            <div id="approve-alerts" class="mb-2"></div>
+            <input id="approve-code" maxlength="6" class="form-control text-center" placeholder="______" inputmode="numeric" />
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button id="btn-approve-verify" class="btn btn-primary">Xác nhận</button>
+        </div>
+        </div>
+    </div>
+</div>
 {% bootstrap_javascript %}
+<script>
+    // Gán biến từ Django context vào biến JS global
+    window.IS_USER_MANAGER = {{ is_manager|yesno:'true,false' }};
+</script>
 </body>
 </html>

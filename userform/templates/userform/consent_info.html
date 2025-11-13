@@ -1,0 +1,138 @@
+{% load static django_bootstrap5 %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Văn bản xác nhận – Thông tin trước khi đăng ký</title>
+    {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <style>
+        /* Mobile-first tweaks – giữ rất nhẹ, phần còn lại dùng Bootstrap util classes */
+        body { background:#f7fbff; }
+        .doc-card { border:0; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.06); }
+        .doc-title { font-weight:700; color:#0ea5e9; }
+        .company-header { font-size:.95rem; color:#334155; }
+        .section-title { font-weight:700; color:#0f172a; margin-top:1.25rem; }
+        .lead-note { color:#475569; }
+        .consent-bullets li { margin-bottom:.35rem; }
+        .sticky-cta { position:sticky; bottom:0; background:linear-gradient(0deg,#f7fbff 75%,rgba(247,251,255,0)); padding-top:.75rem; }
+        @media (min-width:992px){ .doc-card{border-radius:22px} }
+    </style>
+    {% bootstrap_javascript %}
+</head>
+<body>
+    <div class="container py-3 py-md-4">
+        <!-- Header: company text (trái) + logo (phải) -->
+        <div class="d-flex align-items-start justify-content-between mb-3">
+        <div class="company-header pe-3">
+            {{ pdf.company_header|default:''|linebreaksbr }}
+        </div>
+        <div class="text-end">
+            <img src="{% static 'images/fec-logo.png' %}" class="img-fluid" style="max-height:36px" alt="FE CREDIT">
+        </div>
+        </div>
+
+        <div class="card doc-card">
+        <div class="card-body p-3 p-md-4">
+            <h3 class="doc-title h4 text-center mb-3">{{ pdf.title|default:'Văn bản xác nhận' }}</h3>
+
+            <p class="lead-note text-center mb-3">
+            Đây là nội dung tham khảo để Quý khách <strong>đọc trước khi đăng ký</strong>.  
+            Khi đăng ký xong, văn bản có thông tin cá nhân và phần ký sẽ được hiển thị riêng để xác nhận.
+            </p>
+
+            <!-- 1) Loại dữ liệu cá nhân -->
+            <h5 class="section-title">1. {{ pdf.section_1_title|default:'' }}</h5>
+            <p class="mb-2">{{ pdf.section_1_body|default:''|linebreaksbr }}</p>
+            <p class="mb-2">{{ pdf.section_1_basic|default:''|linebreaksbr }}</p>
+            <p class="mb-2">{{ pdf.section_1_sensitive|default:''|linebreaksbr }}</p>
+
+            <!-- 2) Mục đích/cách thức/đối tượng -->
+            <h5 class="section-title">2. {{ pdf.section_2_title|default:'' }}</h5>
+            <ul class="consent-bullets ps-3">
+            {% if pdf.section_2_list %}
+                {% for li in pdf.section_2_list %}
+                <li>{{ li }}</li>
+                {% endfor %}
+            {% endif %}
+            </ul>
+
+
+            <!-- 3) Hậu quả/thiệt hại -->
+            <h5 class="section-title">3. {{ pdf.section_3_title|default:'' }}</h5>
+            <p class="mb-2">{{ pdf.section_3_body|default:''|linebreaksbr }}</p>
+
+            <!-- 4) Thời gian xử lý -->
+            <h5 class="section-title">4. {{ pdf.section_4_title|default:'' }}</h5>
+            <p class="mb-2">{{ pdf.section_4_body|default:''|linebreaksbr }}</p>
+
+            <!-- 5) Quyền & nghĩa vụ -->
+            <h5 class="section-title">5. {{ pdf.section_5_title|default:'' }}</h5>
+            <ul class="consent-bullets ps-3">
+            {% if pdf.section_5_list %}
+                {% for li in pdf.section_5_list %}
+                <li>{{ li }}</li>
+                {% endfor %}
+            {% endif %}
+            </ul>
+
+
+            <!-- 6) Đồng ý nhận quảng cáo -->
+            {% if pdf.section_6_title %}
+            <h5 class="section-title">6. {{ pdf.section_6_title }}</h5>
+            <p class="mb-2">{{ pdf.section_6_body|default:''|linebreaksbr }}</p>
+            {% endif %}
+
+            <!-- 7) Thông báo xử lý dữ liệu -->
+            {% if pdf.section_7_title %}
+            <h5 class="section-title">7. {{ pdf.section_7_title }}</h5>
+            <p class="mb-2">{{ pdf.section_7_body|default:''|linebreaksbr }}</p>
+            {% endif %}
+
+            <!-- 8) Yêu cầu gửi SMS/email có Hyperlink -->
+            {% if pdf.section_8_title %}
+            <h5 class="section-title">8. {{ pdf.section_8_title }}</h5>
+            <p class="mb-2">{{ pdf.section_8_body|default:''|linebreaksbr }}</p>
+            <div class="ps-1">
+                {% if pdf.section_8_choices %}
+                {% for line in pdf.section_8_choices %}
+                    <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" disabled checked>
+                    <label class="form-check-label">{{ line }}</label>
+                    </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
+
+            <hr class="my-3">
+
+            <p class="small text-muted">
+            Khi tiếp tục đăng ký, Quý khách xác nhận đã đọc và đồng ý với 
+            <a href="{% url 'privacy_policy' %}" target="_blank" class="link-primary">Chính sách xử lý & bảo vệ dữ liệu cá nhân</a>.
+            </p>
+
+            <!-- CTA: luôn dễ bấm trên mobile -->
+            <div class="sticky-cta">
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{% url 'user_form' %}" class="btn btn-primary btn-lg flex-grow-1">
+                Bắt đầu đăng ký
+                </a>
+                <a href="/" class="btn btn-outline-secondary btn-lg flex-grow-1">
+                Về trang chính
+                </a>
+            </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="text-center mt-3">
+        <a class="text-muted small" href="{% url 'privacy_policy' %}" target="_blank">
+            Xem chính sách bảo vệ dữ liệu cá nhân
+        </a>
+        </div>
+    </div>
+</body>
+</html>

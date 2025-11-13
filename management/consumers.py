@@ -1,47 +1,67 @@
 # management/consumers.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from asgiref.sync import sync_to_async
 
-class DashboardCustomerConsumer(AsyncWebsocketConsumer):
-    GROUP = "dashboard_customers"
+class HubConsumer(AsyncWebsocketConsumer):
+    DASHBOARD_GROUP = "dashboard_customers"
+    MANAGERS_GROUP  = "managers"
+    UPDATE_GROUP = "update_customers"
+
+
+    @sync_to_async
+    def _is_manager(self, user):
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        # Cho phép cả Group 'manage' hoặc quyền riêng nếu bạn dùng
+        return (
+            user.groups.filter(name="manage").exists()
+            or user.has_perm("management.can_manage_customers")
+            or user.is_staff  # nếu muốn coi staff là manager trong dev
+        )
 
     async def connect(self):
-        await self.accept()
         user = self.scope.get("user")
+        if not (user and user.is_authenticated):
+            await self.close(code=4401); return
 
-        # Chặn non-staff: đóng 4401, KHÔNG gửi gì khác để client không reload
-        if not (user and user.is_authenticated and (user.is_staff or user.is_superuser)):
-            await self.close(code=4401)
-            return
+        await self.accept()
 
+        joined = []
+        if self.channel_layer is not None:
+            await self.channel_layer.group_add(self.DASHBOARD_GROUP, self.channel_name)
+            joined.append(self.DASHBOARD_GROUP)
+            
+            if await self._is_manager(user):
+                await self.channel_layer.group_add(self.MANAGERS_GROUP, self.channel_name)
+                joined.append(self.MANAGERS_GROUP)
+                
+            await self.channel_layer.group_add(self.UPDATE_GROUP, self.channel_name)
+            joined.append(self.UPDATE_GROUP)
+                
+
+        await self.send(text_data=json.dumps({"kind": "ws_ready", "joined": joined}))
+
+    async def disconnect(self, code):
         try:
-            # 1) Channel layer tồn tại không?
-            if self.channel_layer is None:
-                await self.send(text_data=json.dumps({
-                    "kind": "error", "where": "connect", "detail": "channel_layer_none"
-                }))
-                await self.close(code=1011)
-                return
-
-            # 2) Thử join group
-            await self.channel_layer.group_add(self.GROUP, self.channel_name)
-
-            # Ping nhẹ để bạn thấy kết nối ok (frontend KHÔNG reload vì chỉ xử lý kind='customer_created')
-            await self.send(text_data=json.dumps({"kind": "ws_ready"}))
-
-        except Exception as e:
-            import traceback; traceback.print_exc()
-            # Gửi lỗi gọn cho console của bạn
-            await self.send(text_data=json.dumps({
-                "kind": "error", "where": "group_add", "detail": str(e)[:300]
-            }))
-            await self.close(code=1011)
-
-    async def disconnect(self, close_code):
-        try:
-            await self.channel_layer.group_discard(self.GROUP, self.channel_name)
+            if self.channel_layer is not None:
+                await self.channel_layer.group_discard(self.DASHBOARD_GROUP, self.channel_name)
+                await self.channel_layer.group_discard(self.MANAGERS_GROUP,  self.channel_name)
+                await self.channel_layer.group_discard(self.UPDATE_GROUP,  self.channel_name)
         except Exception:
-            import traceback; traceback.print_exc()
+            pass
 
     async def add_message(self, event):
         await self.send(text_data=json.dumps(event.get("data", {})))
+
+    async def approval_request(self, event):
+        payload = event.get("data", {})
+        payload.setdefault("kind", "approve_request")
+        await self.send(text_data=json.dumps(payload))
+
+    async def update_customer(self, event):
+        """Xử lý sự kiện được gửi từ view sau khi cập nhật thành công."""
+        payload = event.get("data", {})
+        await self.send(text_data=json.dumps(payload))

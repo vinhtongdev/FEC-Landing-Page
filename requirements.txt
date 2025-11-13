@@ -72,6 +72,7 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
 webencodings==0.5.1
+whitenoise==6.11.0
 yarl==1.20.1
 zope.interface==8.0.1
 zopfli==0.2.3.post1
