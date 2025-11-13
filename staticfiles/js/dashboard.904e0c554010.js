@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			// === Dashboard events ===
 			case "customer_created":
 			case "signature_confirmed":
+			case "customer_updated":
 				if (typeof updateOrPrependRow === "function") {
 					updateOrPrependRow(msg);
 				}
@@ -45,7 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
 					msg.kind === "customer_created"
 						? `Có khách mới: ${msg.full_name || msg.phone_number || ""}`
 						: `KHÁCH ĐÃ KÝ: ${msg.full_name || msg.phone_number || ""}`
-				);
+				); // Bạn có thể thêm toast riêng cho "customer_updated" nếu muốn
+				// ví dụ: toast(`Thông tin KH #${msg.id} đã được cập nhật.`);
 				break;
 
 			// === Manager approval events (mã 6 số) ===
@@ -68,12 +70,6 @@ document.addEventListener("DOMContentLoaded", () => {
 						<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 					</div>`;
 					document.body.insertAdjacentHTML("beforeend", html);
-				}
-				break;
-
-			case "update_customer":
-				if (msg.result_update === "success" && window.IS_USER_MANAGER) {
-					window.location.reload();
 				}
 				break;
 

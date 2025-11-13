@@ -94,6 +94,7 @@ class DashboardListView(ListView):
         qd = self.request.GET.copy()
         qd.pop('page', None)
         ctx['querystring'] = qd.urlencode()
+        ctx['is_manager'] = is_manager(self.request.user)
         
         # Trả về ctx (nay đã chứa rows, page_obj, form, và querystring) để Django render ra file HTML.
         return ctx
@@ -268,4 +269,13 @@ def approval_verify_and_apply(request, approval_id):
     approval.save(update_fields=["status", "used_at"])
 
     messages.success(request, "Đã lưu thay đổi sau khi xác thực quản lý.")
+    
+    # Gửi thông tin cho manager khi đã cập nhật thành công
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    layer = get_channel_layer()
+    if not layer:
+        return
+    async_to_sync(layer.group_send)("update_customers", {"type":"update_customer", "data":{"result_update": "success", "customer_id": customer.id, "kind": "update_customer"}})
+    
     return JsonResponse({"ok": True})

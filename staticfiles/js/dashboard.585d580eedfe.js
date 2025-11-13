@@ -71,12 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
 				}
 				break;
 
-			case "update_customer":
-				if (msg.result_update === "success" && window.IS_USER_MANAGER) {
-					window.location.reload();
-				}
-				break;
-
 			case "ws_ready":
 				// tuỳ chọn: đánh dấu sẵn sàng
 				break;

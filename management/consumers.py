@@ -6,6 +6,8 @@ from asgiref.sync import sync_to_async
 class HubConsumer(AsyncWebsocketConsumer):
     DASHBOARD_GROUP = "dashboard_customers"
     MANAGERS_GROUP  = "managers"
+    UPDATE_GROUP = "update_customers"
+
 
     @sync_to_async
     def _is_manager(self, user):
@@ -31,9 +33,14 @@ class HubConsumer(AsyncWebsocketConsumer):
         if self.channel_layer is not None:
             await self.channel_layer.group_add(self.DASHBOARD_GROUP, self.channel_name)
             joined.append(self.DASHBOARD_GROUP)
+            
             if await self._is_manager(user):
                 await self.channel_layer.group_add(self.MANAGERS_GROUP, self.channel_name)
                 joined.append(self.MANAGERS_GROUP)
+                
+            await self.channel_layer.group_add(self.UPDATE_GROUP, self.channel_name)
+            joined.append(self.UPDATE_GROUP)
+                
 
         await self.send(text_data=json.dumps({"kind": "ws_ready", "joined": joined}))
 
@@ -42,6 +49,7 @@ class HubConsumer(AsyncWebsocketConsumer):
             if self.channel_layer is not None:
                 await self.channel_layer.group_discard(self.DASHBOARD_GROUP, self.channel_name)
                 await self.channel_layer.group_discard(self.MANAGERS_GROUP,  self.channel_name)
+                await self.channel_layer.group_discard(self.UPDATE_GROUP,  self.channel_name)
         except Exception:
             pass
 
@@ -51,4 +59,9 @@ class HubConsumer(AsyncWebsocketConsumer):
     async def approval_request(self, event):
         payload = event.get("data", {})
         payload.setdefault("kind", "approve_request")
+        await self.send(text_data=json.dumps(payload))
+
+    async def update_customer(self, event):
+        """Xử lý sự kiện được gửi từ view sau khi cập nhật thành công."""
+        payload = event.get("data", {})
         await self.send(text_data=json.dumps(payload))

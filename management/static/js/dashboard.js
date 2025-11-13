@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	ws.onerror = (e) => console.error("WS error", e);
 
 	ws.onmessage = (e) => {
-
 		let msg;
 		try {
 			msg = JSON.parse(e.data);
@@ -51,24 +50,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
 			// === Manager approval events (mã 6 số) ===
 			case "approve_request":
-				// Hiển thị toast/modal để Manager thấy mã phê duyệt
-				// Bạn có thể gọi showManagerApprovalToast(msg) nếu đã có UI toast riêng
-				const html = `
-                <div class="alert alert-info alert-dismissible fade show"
-                    role="alert"
-                    style="position:fixed;right:12px;bottom:12px;z-index:2000;max-width:360px">
-                    <div><strong>Yêu cầu phê duyệt</strong></div>
-                    <div>KH: ${msg.customer_name} (#${msg.customer_id})</div>
-                    <div>Mã: <b>${msg.code}</b></div>
-                    <div class="small text-muted">Hết hạn: ${new Date(
-								msg.expires_at
-							).toLocaleString()}</div>
-                    <div class="small text-muted">Yêu cầu bởi: ${
-								msg.requested_by
-							}</div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>`;
-				document.body.insertAdjacentHTML("beforeend", html);
+				// CHỈ hiển thị toast này cho Manager.
+				// Biến window.IS_USER_MANAGER được giả định là đã được set trong template HTML.
+				if (window.IS_USER_MANAGER) {
+					// Hiển thị toast/modal để Manager thấy mã phê duyệt
+					const html = `
+					<div class="alert alert-info alert-dismissible fade show"
+						role="alert"
+						style="position:fixed;right:12px;bottom:12px;z-index:2000;max-width:360px">
+						<div><strong>Yêu cầu phê duyệt</strong></div>
+						<div>KH: ${msg.customer_name} (#${msg.customer_id})</div>
+						<div>Mã: <b>${msg.code}</b></div>
+						<div class="small text-muted">Hết hạn: ${new Date(
+							msg.expires_at
+						).toLocaleString()}</div>
+						<div class="small text-muted">Yêu cầu bởi: ${msg.requested_by}</div>
+						<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+					</div>`;
+					document.body.insertAdjacentHTML("beforeend", html);
+				}
+				break;
+
+			case "update_customer":
+				if (msg.result_update === "success" && window.IS_USER_MANAGER) {
+					window.location.reload();
+				}
 				break;
 
 			case "ws_ready":
@@ -83,25 +89,25 @@ document.addEventListener("DOMContentLoaded", () => {
 	};
 });
 
- // Chèn dòng mới vào bảng thay vì reload
+// Chèn dòng mới vào bảng thay vì reload
 function prependRow(m) {
-		const tbody = document.querySelector("table tbody");
-		if (!tbody) return;
+	const tbody = document.querySelector("table tbody");
+	if (!tbody) return;
 
-		// Xoá dòng "Chưa có dữ liệu" nếu có
-		const empty = tbody.querySelector("td[colspan]");
-		if (empty && empty.parentElement) empty.parentElement.remove();
+	// Xoá dòng "Chưa có dữ liệu" nếu có
+	const empty = tbody.querySelector("td[colspan]");
+	if (empty && empty.parentElement) empty.parentElement.remove();
 
-		const esc = (v) => {
-			const d = document.createElement("div");
-			d.textContent = v ?? "";
-			return d.innerHTML;
-		};
+	const esc = (v) => {
+		const d = document.createElement("div");
+		d.textContent = v ?? "";
+		return d.innerHTML;
+	};
 
-		const tr = document.createElement("tr");
-        tr.setAttribute('data-id', String(m.id));
+	const tr = document.createElement("tr");
+	tr.setAttribute("data-id", String(m.id));
 
-		tr.innerHTML = `
+	tr.innerHTML = `
         <td>•</td>
         <td>${esc(m.name)}</td>
         <td>${esc(m.gender)}</td>
@@ -119,62 +125,68 @@ function prependRow(m) {
 					: "Không"
 			}</td>
     `;
-		tbody.prepend(tr);
+	tbody.prepend(tr);
 }
 
-function formatVnCurrency(amount, currency = 'VND') {
-    const n = Number(amount);
-    if(!Number.isFinite(n)) return String(amount ?? '');
-    const body = new Intl.NumberFormat('de-DE', {maximumFractionDigits: 0}).format(Math.trunc(n));
-    return `${body} ${currency}`;
+function formatVnCurrency(amount, currency = "VND") {
+	const n = Number(amount);
+	if (!Number.isFinite(n)) return String(amount ?? "");
+	const body = new Intl.NumberFormat("de-DE", {
+		maximumFractionDigits: 0,
+	}).format(Math.trunc(n));
+	return `${body} ${currency}`;
 }
 
-function formatVnPhone(phone){
-    if (typeof phone  === 'string' && phone.startsWith('84') && phone.length === 11){
-        const local = '0' + phone.slice(2);
-        return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
-    }
-    return phone ?? '';
+function formatVnPhone(phone) {
+	if (
+		typeof phone === "string" &&
+		phone.startsWith("84") &&
+		phone.length === 11
+	) {
+		const local = "0" + phone.slice(2);
+		return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+	}
+	return phone ?? "";
 }
 
-function escText(v){
-    const d = document.createElement('div');
-    d.textContent =  v ?? '';
-    return d.textContent;
+function escText(v) {
+	const d = document.createElement("div");
+	d.textContent = v ?? "";
+	return d.textContent;
 }
 
 function buildPdfCellStyled(hasPdf, pdfDownloadUrl) {
-    const td = document.createElement('td');
-    td.className = 'text-center';
-    td.setAttribute('data-col', 'pdf');
+	const td = document.createElement("td");
+	td.className = "text-center";
+	td.setAttribute("data-col", "pdf");
 
-    if (hasPdf) {
-        const a = document.createElement('a');
-        a.className = 'btn btn-sm btn-danger';
-        a.title = 'Tải văn bản xác nhận (PDF)';
-        a.textContent = 'Tải PDF';
-        a.href = pdfDownloadUrl || '#';
-        a.target = '_blank';
-        a.rel = 'noopener';
-        td.appendChild(a);
-    } else {
-        const span = document.createElement('span');
-        span.className = 'badge bg-secondary';
-        span.textContent = 'Chưa có';
-        td.appendChild(span);
-    }
-    return td;
+	if (hasPdf) {
+		const a = document.createElement("a");
+		a.className = "btn btn-sm btn-danger";
+		a.title = "Tải văn bản xác nhận (PDF)";
+		a.textContent = "Tải PDF";
+		a.href = pdfDownloadUrl || "#";
+		a.target = "_blank";
+		a.rel = "noopener";
+		td.appendChild(a);
+	} else {
+		const span = document.createElement("span");
+		span.className = "badge bg-secondary";
+		span.textContent = "Chưa có";
+		td.appendChild(span);
+	}
+	return td;
 }
 
 function buildDetailCell(detailUrl) {
-    const td = document.createElement('td');
-    td.setAttribute('data-col', 'detail');
-    const a = document.createElement('a');
-    a.className = 'btn btn-sm btn-outline-primary';
-    a.textContent = 'Chi tiết';
-    a.href = detailUrl || '#';
-    td.appendChild(a);
-    return td;
+	const td = document.createElement("td");
+	td.setAttribute("data-col", "detail");
+	const a = document.createElement("a");
+	a.className = "btn btn-sm btn-outline-primary";
+	a.textContent = "Chi tiết";
+	a.href = detailUrl || "#";
+	td.appendChild(a);
+	return td;
 }
 
 function buildRowStyled(m) {

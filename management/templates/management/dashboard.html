@@ -182,5 +182,9 @@
     </div>
 </div>
 {% bootstrap_javascript %}
+<script>
+    // Gán biến từ Django context vào biến JS global
+    window.IS_USER_MANAGER = {{ is_manager|yesno:'true,false' }};
+</script>
 </body>
 </html>
