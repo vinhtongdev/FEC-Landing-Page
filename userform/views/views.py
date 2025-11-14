@@ -278,6 +278,153 @@ def verify_otp(request):
 def privacy_policy(request):
     return render(request, 'userform/privacy_policy.html')
 
+def generate_and_save_pdf(customer: CustomerInfo):
+    """
+    Tạo và lưu file PDF cho một khách hàng.
+    Hàm này có thể được gọi lại khi thông tin khách hàng thay đổi.
+    """
+    try:
+        # 1) Nạp nội dung PDF từ file JSON
+        json_path = settings.BASE_DIR / 'userform' / 'helper' / 'pdf_content.json'
+        with open(json_path, 'r', encoding='utf-8') as f:
+            pdf_content = json.load(f)
+
+        # 2) Khởi tạo PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, pagesize=A4,
+            rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=40
+        )
+
+        # --- FONT/STYLE ---
+        font_regular_path = settings.BASE_DIR / 'fonts' / 'times.ttf'
+        font_bold_path    = settings.BASE_DIR / 'fonts' / 'timesbd.ttf'
+        checkbox_font_path = settings.BASE_DIR / 'fonts' / 'DejaVuSans.ttf'
+        pdfmetrics.registerFont(TTFont('TimesNewRoman', str(font_regular_path)))
+        pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', str(font_bold_path)))
+        pdfmetrics.registerFont(TTFont('DejaVuSans', str(checkbox_font_path)))
+
+        styles = getSampleStyleSheet()
+        style_header  = ParagraphStyle('header',  fontName='TimesNewRoman',      fontSize=10, leading=13, alignment=0)
+        style_title   = ParagraphStyle('title',   fontName='TimesNewRoman-Bold', fontSize=15, leading=19, alignment=1, spaceBefore=6, spaceAfter=16)
+        style_label   = ParagraphStyle('label',   fontName='TimesNewRoman-Bold', fontSize=11, leading=15, spaceBefore=6, spaceAfter=2)
+        style_normal  = ParagraphStyle('normal',  fontName='TimesNewRoman',      fontSize=11, leading=15, spaceAfter=6)
+        style_bullet  = ParagraphStyle('bullet',  fontName='TimesNewRoman',      fontSize=11, leading=15, leftIndent=16, firstLineIndent=-8, spaceAfter=2)
+        style_right   = ParagraphStyle('right',   fontName='TimesNewRoman',      fontSize=11, leading=15, alignment=2, spaceBefore=6, spaceAfter=8)
+        style_sign    = ParagraphStyle('sign',    fontName='TimesNewRoman',      fontSize=11, leading=16, alignment=2, spaceBefore=10)
+        
+        Story = []
+
+        # --- HEADER (trái) + LOGO (phải) ---
+        company_header = Paragraph(pdf_content.get('company_header','').replace('\n','<br/>'), style_header)
+        logo_path = settings.BASE_DIR / 'static' / 'images' / 'fec-logo.png'
+        if logo_path.exists():
+            logo = RLImage(str(logo_path), width=140, height=35)
+        else:
+            logo = Paragraph("FE CREDIT", style_title)
+
+        header_tbl = Table([[company_header, logo]], colWidths=[350, 120])
+        header_tbl.setStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('ALIGN', (1,0), (1,0), 'RIGHT')
+        ])
+        Story.append(header_tbl)
+        Story.append(Spacer(1, 8)) 
+
+        # --- TIÊU ĐỀ ---
+        Story.append(Paragraph(pdf_content.get('title', 'VĂN BẢN XÁC NHẬN'), style_title))
+
+        # --- KHỐI THÔNG TIN KHÁCH HÀNG ---
+        email = getattr(customer, 'email', '') or ''
+        customer_block = pdf_content.get('customer_block_label','').format(
+            full_name = customer.full_name,
+            id_card   = customer.id_card,
+            phone     = format_vn_phone(customer.phone_number),
+            email     = email
+        ).replace('\n','<br/>')
+        Story.append(Paragraph(customer_block, style_normal))
+
+        # --- LỜI MỞ ĐẦU ---
+        intro_ack = pdf_content.get('intro_ack','')
+        if intro_ack:
+            Story.append(Paragraph(intro_ack.replace('\n','<br/>'), style_normal))
+
+        # --- CÁC MỤC NỘI DUNG ---
+        sections = [
+            ('section_1_title', 'section_1_body', 'section_1_basic', 'section_1_sensitive'),
+            ('section_2_title', 'section_2_list'),
+            ('section_3_title', 'section_3_body'),
+            ('section_4_title', 'section_4_body'),
+            ('section_5_title', 'section_5_list'),
+            ('section_6_title', 'section_6_body'),
+            ('section_7_title', 'section_7_body'),
+            ('section_8_title', 'section_8_body', 'section_8_choices', 'section_8_selected'),
+        ]
+        for i, sec_keys in enumerate(sections, 1):
+            title_key = sec_keys[0]
+            title_text = pdf_content.get(title_key, '')
+            if title_text:
+                Story.append(Paragraph(f"{i}. {title_text}", style_label))
+            
+            for key in sec_keys[1:]:
+                content = pdf_content.get(key)
+                if isinstance(content, str):
+                    Story.append(Paragraph(content.replace('\n', '<br/>'), style_normal))
+                elif isinstance(content, list) and key.endswith('_list'):
+                    for item in content:
+                        item_text = item.strip()
+                        if not item_text.startswith('•'):
+                            item_text = '• ' + item_text
+                        Story.append(Paragraph(item_text, style_bullet))
+                elif key.endswith('_choices'):
+                    choices = content or []
+                    selected_key = sec_keys[sec_keys.index(key) + 1]
+                    selected_flags = pdf_content.get(selected_key, [])
+                    if len(selected_flags) < len(choices):
+                        selected_flags += [False] * (len(choices) - len(selected_flags))
+                    for idx, line in enumerate(choices):
+                        Story.append(make_checkbox_paragraph(line, bool(selected_flags[idx]), style_normal))
+
+        Story.append(Spacer(1, 6))
+
+        # --- NGÀY/ĐỊA ĐIỂM ---
+        now = datetime.now()
+        date_str = f"TP.HCM, ngày {now.day} tháng {now.month} năm {now.year}"
+        Story.append(Paragraph(date_str, style_right))
+        Story.append(Spacer(1, 6))
+
+        # --- KHỐI CHỮ KÝ ---
+        sign_title = pdf_content.get('sign_title', 'Khách hàng xác nhận')
+        sign_note  = pdf_content.get('sign_note', '(ký, ghi rõ họ tên)')
+        sign_name  = pdf_content.get('sign_name_template', '[{full_name}]').format(full_name=customer.full_name)
+
+        Story.append(Paragraph(sign_title, style_sign))
+        Story.append(Spacer(1, 6))
+
+        if customer.signature and customer.signature.path:
+            sig_img = RLImage(customer.signature.path, width=180, height=80)
+            sig_img.hAlign = 'RIGHT'
+            Story.append(sig_img)
+            Story.append(Spacer(1, 4))
+
+        Story.append(Paragraph(sign_note, style_sign))
+        Story.append(Paragraph(sign_name, style_sign))
+
+        # --- XUẤT FILE ---
+        doc.build(Story)
+        pdf_data = buffer.getvalue()
+        buffer.close()
+
+        pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
+        customer.signature_document = pdf_file
+        customer.save(update_fields=['signature_document'])
+        logger.info(f"Successfully regenerated PDF for customer #{customer.id}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to generate PDF for customer #{customer.id}: {str(e)}")
+        return False
+
 @ratelimit(key='ip', rate='5/m', block=True)
 def confirm_and_sign(request, customer_id):
     customer = get_object_or_404(CustomerInfo, id=customer_id)
@@ -297,200 +444,9 @@ def confirm_and_sign(request, customer_id):
                 data = ContentFile(base64.b64decode(imgstr), name=f'signature_{customer.id}.{ext}')
                 customer.signature = data
                 customer.save(update_fields=['signature'])
-
-                # 2) Nạp nội dung PDF
-                json_path = settings.BASE_DIR / 'userform' / 'helper' / 'pdf_content.json'
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    pdf_content = json.load(f)
-
-                # 3) Khởi tạo PDF
-                buffer = BytesIO()
-                doc = SimpleDocTemplate(
-                    buffer, pagesize=A4,
-                    rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=40
-                )
-
-                # --- FONT/STYLE ---
-                font_regular_path = settings.BASE_DIR / 'fonts' / 'times.ttf'
-                font_bold_path    = settings.BASE_DIR / 'fonts' / 'timesbd.ttf'
-                checkbox_font_path = settings.BASE_DIR / 'fonts' / 'DejaVuSans.ttf'
-                pdfmetrics.registerFont(TTFont('TimesNewRoman', str(font_regular_path)))
-                pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', str(font_bold_path)))
-                pdfmetrics.registerFont(TTFont('DejaVuSans', str(checkbox_font_path)))
-
-                styles = getSampleStyleSheet()
-                style_header  = ParagraphStyle('header',  fontName='TimesNewRoman',      fontSize=10, leading=13, alignment=0)
-                style_title   = ParagraphStyle('title',   fontName='TimesNewRoman-Bold', fontSize=15, leading=19, alignment=1, spaceBefore=6, spaceAfter=16)
-                style_label   = ParagraphStyle('label',   fontName='TimesNewRoman-Bold', fontSize=11, leading=15, spaceBefore=6, spaceAfter=2)
-                style_normal  = ParagraphStyle('normal',  fontName='TimesNewRoman',      fontSize=11, leading=15, spaceAfter=6)
-                style_bullet  = ParagraphStyle('bullet',  fontName='TimesNewRoman',      fontSize=11, leading=15, leftIndent=16, firstLineIndent=-8, spaceAfter=2)
-                style_right   = ParagraphStyle('right',   fontName='TimesNewRoman',      fontSize=11, leading=15, alignment=2, spaceBefore=6, spaceAfter=8)
-                style_sign    = ParagraphStyle('sign',    fontName='TimesNewRoman',      fontSize=11, leading=16, alignment=2, spaceBefore=10)
                 
-                style_checkbox = ParagraphStyle(
-                'checkbox',
-                fontName='DejaVuSans',   # dùng DejaVuSans để hiển thị ☑ / ☐
-                fontSize=11,
-                leading=15,
-                spaceAfter=2)
-
-                Story = []
-
-                # --- HEADER (trái) + LOGO (phải) ---
-                company_header = Paragraph(pdf_content.get('company_header','').replace('\n','<br/>'), style_header)
-                logo_path = settings.BASE_DIR / 'static' / 'images' / 'fec-logo.png'
-                if logo_path.exists():
-                    logo = RLImage(str(logo_path), width=140, height=35)
-                else:
-                    logo = Paragraph("FE CREDIT", style_title)
-
-                header_tbl = Table([[company_header, logo]], colWidths=[350, 120])
-                header_tbl.setStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                    ('ALIGN', (1,0), (1,0), 'RIGHT')
-                ])
-                Story.append(header_tbl)
-                Story.append(Spacer(1, 8)) 
-
-                # --- TIÊU ĐỀ ---
-                Story.append(Paragraph(pdf_content.get('title', 'VĂN BẢN XÁC NHẬN'), style_title))
-
-                # --- KHỐI THÔNG TIN KHÁCH HÀNG ---
-                email = getattr(customer, 'email', '') or ''  # nếu chưa có field email thì để rỗng
-                customer_block = pdf_content.get('customer_block_label','').format(
-                    full_name = customer.full_name,
-                    id_card   = customer.id_card,
-                    phone     = format_vn_phone(customer.phone_number),
-                    email     = email
-                ).replace('\n','<br/>')
-                Story.append(Paragraph(customer_block, style_normal))
-
-                # --- LỜI MỞ ĐẦU ---
-                intro_ack = pdf_content.get('intro_ack','')
-                if intro_ack:
-                    Story.append(Paragraph(intro_ack.replace('\n','<br/>'), style_normal))
-
-                # --- MỤC 1: Loại dữ liệu cá nhân ---
-                s1_title = pdf_content.get('section_1_title','')
-                if s1_title:
-                    Story.append(Paragraph("1. " + s1_title, style_label))
-                for key in ('section_1_body','section_1_basic','section_1_sensitive'):
-                    txt = pdf_content.get(key,'')
-                    if txt:
-                        Story.append(Paragraph(txt.replace('\n','<br/>'), style_normal))
-
-                # --- MỤC 2: Mục đích/cách thức/đối tượng xử lý ---
-                s2_title = pdf_content.get('section_2_title','')
-                if s2_title:
-                    Story.append(Paragraph("2. " + s2_title, style_label))
-                for li in pdf_content.get('section_2_list', []):
-                    txt = li.strip()
-                    if not txt.startswith('•'):
-                        txt = '• ' + txt
-                    Story.append(Paragraph(txt, style_bullet))
-
-                # --- MỤC 3: Hậu quả ---
-                s3_title = pdf_content.get('section_3_title','')
-                if s3_title:
-                    Story.append(Paragraph("3. " + s3_title, style_label))
-                s3_body = pdf_content.get('section_3_body','')
-                if s3_body:
-                    Story.append(Paragraph(s3_body.replace('\n','<br/>'), style_normal))
-
-                # --- MỤC 4: Thời gian xử lý ---
-                s4_title = pdf_content.get('section_4_title','')
-                if s4_title:
-                    Story.append(Paragraph("4. " + s4_title, style_label))
-                s4_body = pdf_content.get('section_4_body','')
-                if s4_body:
-                    Story.append(Paragraph(s4_body.replace('\n','<br/>'), style_normal))
-
-                # --- MỤC 5: Quyền & Nghĩa vụ ---
-                s5_title = pdf_content.get('section_5_title','')
-                if s5_title:
-                    Story.append(Paragraph("5. " + s5_title, style_label))
-                for li in pdf_content.get('section_5_list', []):
-                    txt = li.strip()
-                    if not txt.startswith('•'):
-                        txt = '• ' + txt
-                    Story.append(Paragraph(txt, style_bullet))
-
-                # --- MỤC 6 ---
-                s6_title = pdf_content.get('section_6_title','')
-                if s6_title:
-                    Story.append(Paragraph("6. " + s6_title, style_label))
-                s6_body = pdf_content.get('section_6_body','')
-                if s6_body:
-                    Story.append(Paragraph(s6_body.replace('\n','<br/>'), style_normal))
-
-                # --- MỤC 7 ---
-                s7_title = pdf_content.get('section_7_title','')
-                if s7_title:
-                    Story.append(Paragraph("7. " + s7_title, style_label))
-                s7_body = pdf_content.get('section_7_body','')
-                if s7_body:
-                    Story.append(Paragraph(s7_body.replace('\n','<br/>'), style_normal))
-
-                # --- Mục 8 ---
-                sec8_title    = pdf_content.get('section_8_title')
-                sec8_body     = (pdf_content.get('section_8_body') or '').replace('\n', '<br/>')
-                sec8_choices  = pdf_content.get('section_8_choices', [])
-                sec8_selected = pdf_content.get('section_8_selected', [])
-
-                if sec8_title:
-                    Story.append(Paragraph("8. " + sec8_title, style_label))
-                if sec8_body:
-                    Story.append(Paragraph(sec8_body, style_normal))
-
-                # Bù độ dài để tránh IndexError
-                if len(sec8_selected) < len(sec8_choices):
-                    sec8_selected += [False] * (len(sec8_choices) - len(sec8_selected))
-
-                for i, line in enumerate(sec8_choices):
-                    checked = bool(sec8_selected[i])
-                    Story.append(make_checkbox_paragraph(line, checked, style_normal))
-
-                Story.append(Spacer(1, 6))
-
-                # --- Khối yêu cầu gửi hyperlink (nếu có) ---
-                hyper = pdf_content.get('hyperlink_block','')
-                if hyper:
-                    Story.append(Paragraph(hyper.replace('\n','<br/>'), style_normal))
-
-                # --- NGÀY/ĐỊA ĐIỂM ---
-                now = datetime.now()
-                date_str = f"TP.HCM, ngày {now.day} tháng {now.month} năm {now.year}"
-                Story.append(Paragraph(date_str, style_right))
-                Story.append(Spacer(1, 6))
-
-                # --- KHỐI CHỮ KÝ ---
-                sign_title = pdf_content.get('sign_title', 'Khách hàng xác nhận')
-                sign_note  = pdf_content.get('sign_note', '(ký, ghi rõ họ tên)')
-                sign_name  = pdf_content.get('sign_name_template', '[{full_name}]').format(full_name=customer.full_name)
-
-                # Tiêu đề
-                Story.append(Paragraph(sign_title, style_sign))
-                Story.append(Spacer(1, 6))
-
-                # Ảnh chữ ký NẰM TRÊN
-                if customer.signature:
-                    sig_img = RLImage(customer.signature.path, width=180, height=80)
-                    sig_img.hAlign = 'RIGHT'
-                    Story.append(sig_img)
-                    Story.append(Spacer(1, 4))
-
-                # Ghi chú + Tên
-                Story.append(Paragraph(sign_note, style_sign))
-                Story.append(Paragraph(sign_name, style_sign))
-
-                # --- XUẤT FILE ---
-                doc.build(Story)
-                pdf_data = buffer.getvalue()
-                buffer.close()
-
-                pdf_file = ContentFile(pdf_data, name=f'signed_document_{customer.id}.pdf')
-                customer.signature_document = pdf_file
-                customer.save(update_fields=['signature_document'])
+                # 2) Gọi hàm để tạo và lưu file PDF
+                generate_and_save_pdf(customer)
 
                 # !!! WS send event
                 f = getattr(customer, "signature_document", None)

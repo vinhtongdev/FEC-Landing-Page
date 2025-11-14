@@ -16,6 +16,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.db.models import Q
 from django.db import transaction
 from management.utils import is_manager
+from userform.views.views import generate_and_save_pdf
 from .forms import CustomerQuickEditForm, FilterForm
 from userform.models import CustomerInfo
 import csv
@@ -197,8 +198,11 @@ def customer_save_changes(request, pk):
         return JsonResponse({'ok': False, "errors_html": form.as_bootstrap()}, status=400)
     
     if is_manager(request.user):
-        form.save()
-        messages.success(request, "Đã cập nhật khách hàng")
+        updated_customer = form.save()
+        # Nếu khách hàng đã ký, tạo lại file PDF với thông tin mới
+        if updated_customer.signature:
+            generate_and_save_pdf(updated_customer)
+        messages.success(request, "Đã cập nhật thông tin khách hàng thành công.")
         return JsonResponse({'ok': True})
     
     if not form.has_changed():
@@ -263,6 +267,9 @@ def approval_verify_and_apply(request, approval_id):
         setattr(customer, k, v)
         
     customer.save()
+    
+    # Update customer for pdf
+    generate_and_save_pdf(customer)
     
     approval.status = "used"
     approval.used_at = timezone.now()
