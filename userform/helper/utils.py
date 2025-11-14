@@ -6,7 +6,7 @@ import time
 from xml.sax.saxutils import escape
 from reportlab.platypus import Paragraph
 
-OTP_TTL = getattr(settings, 'OTP_TTL', 45)
+OTP_TTL = getattr(settings, 'OTP_TTL', 60)
 
 def session_safe(d: dict) -> dict:
     out = {}

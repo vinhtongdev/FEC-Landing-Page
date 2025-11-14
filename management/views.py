@@ -268,8 +268,6 @@ def approval_verify_and_apply(request, approval_id):
     approval.used_at = timezone.now()
     approval.save(update_fields=["status", "used_at"])
 
-    messages.success(request, "Đã lưu thay đổi sau khi xác thực quản lý.")
-    
     # Gửi thông tin cho manager khi đã cập nhật thành công
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
@@ -278,4 +276,7 @@ def approval_verify_and_apply(request, approval_id):
         return
     async_to_sync(layer.group_send)("update_customers", {"type":"update_customer", "data":{"result_update": "success", "customer_id": customer.id, "kind": "update_customer"}})
     
-    return JsonResponse({"ok": True})
+    return JsonResponse({
+        "ok": True,
+        "message": "Đã lưu thay đổi thành công!"
+    })

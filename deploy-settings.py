@@ -159,7 +159,7 @@ SOUTH_FROM = os.environ.get('SOUTH_FROM')
 SOUTH_API_URL = os.environ.get('SOUTH_API_URL')
 
 # OTP Resend Interval (seconds)
-OTP_TTL = 45
+OTP_TTL = 60
 
 LOGGING = {
     'version': 1,

@@ -136,7 +136,7 @@
 			const data = await resp.json().catch(() => ({}));
 			stopProgress(true);
 
-			// Server nên trả TTL mới (vd 45s): {'ok': True, 'remaining': 45, ...}
+			// Server nên trả TTL mới (vd 60s): {'ok': True, 'remaining': 60, ...}
 			if (typeof data.remaining === "number") {
 				startCountdown(data.remaining); // << reset & chạy lại
 			}

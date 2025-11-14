@@ -180,12 +180,26 @@ function buildPdfCellStyled(hasPdf, pdfDownloadUrl) {
 
 function buildDetailCell(detailUrl) {
 	const td = document.createElement("td");
+	td.className = "text-center";
 	td.setAttribute("data-col", "detail");
 	const a = document.createElement("a");
-	a.className = "btn btn-sm btn-outline-primary";
+	a.className = "btn btn-sm btn-primary";
 	a.textContent = "Chi tiết";
 	a.href = detailUrl || "#";
 	td.appendChild(a);
+	return td;
+}
+
+function buildEditCell(customerId) {
+	const td = document.createElement("td");
+	td.className = "text-center";
+	td.setAttribute("data-col", "edit");
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "btn btn-sm btn-warning btn-edit";
+	button.textContent = "Chỉnh Sửa";
+	button.setAttribute("data-id", customerId);
+	td.appendChild(button);
 	return td;
 }
 
@@ -253,6 +267,9 @@ function buildRowStyled(m) {
 	// 11: Detail cell
 	tr.appendChild(buildDetailCell(m.detail_url || null));
 
+	// 12: Edit cell
+	tr.appendChild(buildEditCell(m.id));
+
 	return tr;
 }
 
@@ -273,13 +290,21 @@ function updateRowStyled(tr, m) {
 
 	const oldPdf = tr.querySelector('[data-col="pdf"]');
 	const freshPdf = buildPdfCellStyled(!!m.has_pdf, m.pdf_download_url || null);
-	if (oldPdf) tr.replaceChild(freshPdf, oldPdf);
-	else tr.appendChild(freshPdf);
+	if (oldPdf) {
+		tr.replaceChild(freshPdf, oldPdf);
+	}
+
+	const oldEdit = tr.querySelector('[data-col="edit"]');
+	const freshEdit = buildEditCell(m.id);
+	if (oldEdit) {
+		tr.replaceChild(freshEdit, oldEdit);
+	}
 
 	const oldDetail = tr.querySelector('[data-col="detail"]');
 	const freshDetail = buildDetailCell(m.detail_url || null);
-	if (oldDetail) tr.replaceChild(freshDetail, oldDetail);
-	else tr.appendChild(freshDetail);
+	if (oldDetail) {
+		tr.replaceChild(freshDetail, oldDetail);
+	}
 
 	// optional: highlight 1s cho dễ thấy cập nhật
 	tr.classList.add("table-warning");

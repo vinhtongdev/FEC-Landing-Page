@@ -183,7 +183,7 @@ function buildDetailCell(detailUrl) {
 	td.className = "text-center";
 	td.setAttribute("data-col", "detail");
 	const a = document.createElement("a");
-	a.className = "btn btn-sm btn-primary";
+	a.className = "btn btn-sm btn-outline-primary";
 	a.textContent = "Chi tiết";
 	a.href = detailUrl || "#";
 	td.appendChild(a);

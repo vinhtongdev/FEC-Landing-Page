@@ -34,7 +34,7 @@ from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
 
-RESEND_COOLDOWN = 45  # giây
+RESEND_COOLDOWN = 60  # giây
 
 def seconds_remaining(session) -> int:
     """Số giây còn lại trước khi được gửi lại OTP."""
@@ -492,7 +492,7 @@ def confirm_and_sign(request, customer_id):
                 customer.signature_document = pdf_file
                 customer.save(update_fields=['signature_document'])
 
-                # !!! WS send event (chuyển xuống đây)
+                # !!! WS send event
                 f = getattr(customer, "signature_document", None)
                 has_pdf = bool(f and getattr(f, "name", None))
                 payload = {
@@ -518,7 +518,7 @@ def confirm_and_sign(request, customer_id):
                         {"type": "add_message", "data": payload}
                     ))
 
-                messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận.')
+                messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận. \n IT-Com Vietnam đã nhận được thông tin đăng ký của quý khách. Tư vấn viên sẽ sớm liên hệ lại trong thời gian sớm nhất.')
                 return redirect('sign_done', customer_id=customer.id)
 
             except Exception as e:
