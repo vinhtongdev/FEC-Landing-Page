@@ -17,6 +17,7 @@ services:
     depends_on:
       - db
       - redis
+    retart: always
 
   db:
     image: postgres:13
@@ -26,6 +27,7 @@ services:
       - POSTGRES_DB=i-cus
       - POSTGRES_USER=sa
       - POSTGRES_PASSWORD=itcom21
+    retart: always
 
   redis:
     image: redis:alpine
@@ -33,6 +35,7 @@ services:
       - "6379:6379"  # Optional: expose cho debug, có thể bỏ nếu không cần
     volumes:
       - redis_data:/data
+    retart: always
 
 volumes:
   postgres_data:
