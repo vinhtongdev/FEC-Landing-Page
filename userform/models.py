@@ -2,8 +2,46 @@ from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.db.models import Q, UniqueConstraint
-
+from datetime import timedelta
 from userform.helper.utils import normalize_id, normalize_phone
+
+
+
+class OtpGuard(models.Model):
+    phone = models.CharField(max_length=20, unique=True)
+    fail_count = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def is_locked(self):
+        """Đang bị khóa hay không"""
+        if self.locked_until is None:
+            return False
+        return self.locked_until > timezone.now()
+        
+    def register_fail(self, max_fail=5, lock_hours=24):
+        """
+        Ghi nhận 1 lần nhập sai.
+        Nếu số lần sai >= max_fail -> khóa trong lock_hours.
+        """
+        now = timezone.now()
+        # Nếu đã hết hạn khóa => reset lại
+        if self.locked_until and self.locked_until <= now:
+            self.fail_count = 0
+            self.locked_until = None
+        
+        self.fail_count += 1
+        if self.fail_count >= max_fail:
+            self.locked_until = now + timedelta(hours=lock_hours)
+        self.save(update_fields=["fail_count", "locked_until", "updated_at"])
+        
+    def reset(self):
+        """Reset khi OTP đúng"""
+        self.fail_count = 0
+        self.locked_until = None
+        self.save(update_fields=['fail_count', 'locked_until', 'updated_at'])
+
+        
 
 class CustomerInfo(models.Model):
     class Meta:
