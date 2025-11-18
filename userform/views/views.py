@@ -5,7 +5,6 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.core.files.base import ContentFile
 from django.urls import reverse
-from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from ..forms.forms import CustomerInfoForm, OTPForm
@@ -19,12 +18,12 @@ from ..helper.utils import OTP_TTL, make_checkbox_paragraph, normalize_id, norma
 import base64
 import time
 import random
-from ..models import CustomerInfo
+from ..models import CustomerInfo, OtpGuard
 from django_ratelimit.decorators import ratelimit
 from django.db import IntegrityError
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, KeepInFrame, CondPageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import json
 from django.db import transaction
@@ -112,10 +111,30 @@ def user_form(request):
         if form.is_valid():
             try:
                 cleaned = session_safe(form.cleaned_data.copy())
+                
+                raw_phone = form.cleaned_data.get('phone_number') or ""
+                norm_phone = normalize_phone(raw_phone)
+                
+                # 🔒 Kiểm tra OtpGuard trước khi gửi OTP
+                guard, _ = OtpGuard.objects.get_or_create(phone=norm_phone)
+                if guard.is_locked():
+                    form.add_error(
+                        "phone_number",
+                        "Số điện thoại này đã nhập sai OTP quá nhiều lần. Vui lòng thử lại sau 24 giờ."
+                    )
+                    messages.error(
+                        request,
+                        "Số điện thoại đang bị tạm khóa do nhập sai OTP quá nhiều lần."
+                    )
+                    return render(request, "userform/form.html", {'form': form})
+                
+                
                 request.session['user_data'] = cleaned
                 
                 otp = generate_otp() 
-                request.session['otp_phone'] = form.cleaned_data.get('phone_number')
+                request.session['otp_phone'] = raw_phone
+                request.session['otp_phone_norm'] = norm_phone
+                
                 # ok = send_otp(form.cleaned_data['phone_number'], otp)
                 ok = True
                 print("OTP: ", otp)
@@ -141,15 +160,38 @@ def user_form(request):
     form = CustomerInfoForm(initial)
     return render(request, 'userform/form.html', {'form': form})
 
+
 @ratelimit(key='ip', rate='5/m', block=False) # Giới hạn 5 lần/phút theo IP
 def verify_otp(request):
     # Tính còn bao nhiêu giây cooldown (để hiển thị và disable nút)
     remaining = seconds_remaining(request.session)
+    
+    # Lấy phone chuẩn hoá từ session (nếu có)
+    raw_phone = request.session.get('otp_phone') or ""
+    norm_phone = normalize_phone(raw_phone) if raw_phone else ""
+    guard = None
+    if norm_phone:
+        guard, _ = OtpGuard.objects.get_or_create(phone=norm_phone)
+
 
     if request.method == 'POST':
         # Nếu bấm "Gửi lại"
         if request.method == 'POST' and request.POST.get('action') == 'resend':
             is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+            
+            # 🔒 Nếu bị khóa thì không cho gửi lại
+            if guard and guard.is_locked():
+                msg = "Bạn đã nhập sai OTP quá nhiều lần. Số điện thoại này tạm bị khóa trong 24 giờ."
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'remaining': remaining, 'locked': True, 'message': msg})
+                messages.error(request, msg)
+                masked_phone = mask_phone(raw_phone)
+                return render(request, 'userform/otp.html', {
+                    'form': OTPForm(),
+                    'remaining': remaining,
+                    'masked_phone': masked_phone,
+                })
+                
             if remaining > 0:
                 msg = f"Vui lòng đợi {remaining}s rồi mới gửi lại mã."
                 if is_ajax:
@@ -198,16 +240,34 @@ def verify_otp(request):
         # Submit OTP
         form = OTPForm(request.POST)
         if form.is_valid():
-            if otp_seconds_left(request.session) <= 0:
-                messages.error(request, "Mã OTP đã hết hạn. Vui lòng bấm Gửi lại.")
-                masked_phone = mask_phone(request.session.get('otp_phone'))
+            
+            # 🔒 Nếu guard đang khóa thì chặn ngay
+            if guard and guard.is_locked():
+                messages.error(
+                    request,
+                    "Bạn đã nhập sai OTP quá nhiều lần. Số điện thoại này tạm bị khóa trong 24 giờ."
+                )
+                masked_phone = mask_phone(raw_phone)
                 return render(request, 'userform/otp.html', {
                     'form': OTPForm(),
-                    'remaining': otp_seconds_left(request.session),  # thường = 0
+                    'remaining': remaining,
                     'masked_phone': masked_phone,
                 })
                 
             if str(form.cleaned_data['otp']) == str(request.session.get('otp')):
+                if otp_seconds_left(request.session) <= 0:
+                    messages.error(request, "Mã OTP đã hết hạn. Vui lòng bấm Gửi lại.")
+                    masked_phone = mask_phone(request.session.get('otp_phone'))
+                    return render(request, 'userform/otp.html', {
+                        'form': OTPForm(),
+                        'remaining': otp_seconds_left(request.session),  # thường = 0
+                        'masked_phone': masked_phone,
+                    })
+                    
+                # ✅ OTP ĐÚNG: reset guard
+                if guard:
+                    guard.reset()
+                    
                 user_data = request.session.get('user_data') or {}
 
                 # Bind lại vào ModelForm để lưu model chính xác
@@ -257,7 +317,18 @@ def verify_otp(request):
                     # Trường hợp hiếm: dữ liệu parse lại lỗi → quay về form nhập liệu
                     return render(request, 'userform/form.html', {'form': mf})
             else:
-                messages.error(request, 'Mã OTP không đúng!')
+                # ❌ OTP SAI: tăng fail_count + thông báo số lần còn lại
+                if guard:
+                    guard.register_fail(max_fail=5, lock_hours=24)
+                    remaining_tries = max(0, 5 - guard.fail_count)
+                    
+                    if guard.is_locked() or remaining_tries == 0:
+                        msg = "Mã OTP không đúng. Số điện thoại này đã bị khóa 24 giờ do nhập sai quá nhiều lần."
+                    else:
+                        msg = f"Mã OTP không đúng. Bạn còn {remaining_tries} lần thử trước khi bị khóa 24 giờ."
+                        
+                    messages.error(request, msg)
+
 
         remaining = seconds_remaining(request.session)
         masked_phone = mask_phone(request.session.get('otp_phone'))
