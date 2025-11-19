@@ -22,6 +22,115 @@ document.addEventListener("DOMContentLoaded", () => {
 	const notify = (m) => (window.toast ? window.toast(m) : alert(m));
 	const toast = window.toast || ((m) => console.log("[toast]", m));
 
+	// ==== 1) Biến trạng thái cho Notification API ====
+	let notificationEnabled = false;
+
+	function initNotificationPermission() {
+		if (!("Notification" in window)) {
+			console.warn("Trình duyệt không hỗ trợ Notification API");
+			return;
+		}
+		if (Notification.permission === "granted") {
+			notificationEnabled = true;
+			return;
+		}
+		if (Notification.permission === "denied") {
+			console.warn("User đã chặn thông báo cho site này.");
+			return;
+		}
+		// "default" -> chưa quyết → ta *có thể* xin quyền.
+		// Tốt nhất là gắn với 1 hành động user (click nút).
+	}
+
+	const btnEnable = document.getElementById("btn-enable-noti");
+	if (btnEnable && "Notification" in window) {
+		btnEnable.addEventListener("click", () => {
+			if (Notification.permission === "granted") {
+				notificationEnabled = true;
+				toast("Thông báo trình duyệt đã được bật.");
+				return;
+			}
+			if (Notification.permission === "denied") {
+				alert(
+					"Bạn đã chặn thông báo cho trang này trong trình duyệt. Vui lòng vào cài đặt site để mở lại."
+				);
+				return;
+			}
+			Notification.requestPermission().then((perm) => {
+				if (perm === "granted") {
+					notificationEnabled = true;
+					toast("Đã bật thông báo trình duyệt.");
+				} else {
+					toast("Bạn đã không cho phép thông báo.");
+				}
+			});
+		});
+	}
+	// Khởi tạo (chỉ check, không tự động xin permission)
+	initNotificationPermission();
+
+	// ==== 2) Hàm hiển thị notification cho các sự kiện WS ====
+	function showWSNotification(msg) {
+		if (!("Notification" in window)) return;
+		if (!notificationEnabled && Notification.permission !== "granted") {
+			// Chưa cho phép thì thôi, đừng làm phiền.
+			return;
+		}
+		let title = "";
+		let body = "";
+		let url = null;
+		switch (msg.kind) {
+			case "customer_created":
+				title = "Khách hàng mới đăng ký";
+				body =
+					(msg.full_name || msg.name || "") +
+					(msg.phone || msg.phone_number
+						? " - " + (msg.phone || msg.phone_number)
+						: "");
+				url = msg.detail_url || msg.dashboard_url || null;
+				break;
+
+			case "signature_confirmed":
+				title = "Khách hàng đã ký xác nhận";
+				body =
+					(msg.full_name || "") +
+					(msg.phone_number ? " - " + msg.phone_number : "");
+				url = msg.detail_url || null;
+				break;
+
+			case "approval_request":
+				title = "Yêu cầu phê duyệt thông tin";
+				body =
+					`KH: ${msg.customer_name} (#${msg.customer_id})` +
+					(msg.code ? ` - Mã: ${msg.code}` : "");
+				// mở trang dashboard hoặc chi tiết
+				url = msg.detail_url || window.location.origin + "/dashboard/";
+				break;
+
+			default:
+				return; // các loại khác không cần notify
+		}
+
+		try {
+			const n = new Notification(title, {
+				body: body || "",
+				// tag dùng để tránh spam nhiều notification giống nhau
+                tag: `fec-${msg.kind}-${msg.id || msg.customer_id || Date.now()}`,
+			});
+
+            n.onclick = (ev) => {
+                ev.preventDefault();
+                window.focus();
+                if (url) {
+                    window.open(url, "_blank", );
+                }
+                n.close();
+            }
+		} catch (err) {
+			console.error("Lỗi khi hiển thị notification:", err);
+		}
+	}
+
 	ws.onopen = () => console.log("WS open (hub)");
 	ws.onclose = (e) => console.warn("WS closed:", e.code);
 	ws.onerror = (e) => console.error("WS error", e);
@@ -46,6 +155,8 @@ document.addEventListener("DOMContentLoaded", () => {
 						? `Có khách mới: ${msg.full_name || msg.phone_number || ""}`
 						: `KHÁCH ĐÃ KÝ: ${msg.full_name || msg.phone_number || ""}`
 				);
+				// 🔔 Thêm: notification trình duyệt
+                showWSNotification(msg);
 				break;
 
 			// === Manager approval events (mã 6 số) ===
@@ -68,6 +179,9 @@ document.addEventListener("DOMContentLoaded", () => {
 						<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 					</div>`;
 					document.body.insertAdjacentHTML("beforeend", html);
+
+					// 🔔 Thêm: notification trình duyệt
+                    showWSNotification(msg);
 				}
 				break;
 
