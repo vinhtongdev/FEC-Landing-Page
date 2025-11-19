@@ -29,6 +29,7 @@ import json
 from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.utils.timesince import timesince
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,24 @@ def seconds_remaining(session) -> int:
         return left if left > 0 else 0
     except Exception:
         return 0
+    
+def humanize_seconds(sec: int) -> str:
+    """Chuyển giây thành chuỗi tiếng Việt: '2 giờ 15 phút', '5 phút', '30 giây'."""
+    if sec <= 0:
+        return "0 phút"
+    hours = sec // 3600
+    minutes = (sec % 3600) // 60
+    seconds = sec % 60
+
+    parts = []
+    if hours:
+        parts.append(f"{hours} giờ")
+    if minutes:
+        parts.append(f"{minutes} phút")
+    if seconds:
+        parts.append(f"{seconds} giây")
+
+    return " ".join(parts)
 
 
 def generate_otp():
@@ -115,9 +134,15 @@ def user_form(request):
                 raw_phone = form.cleaned_data.get('phone_number') or ""
                 norm_phone = normalize_phone(raw_phone)
                 
+                # lưu lại dữ liệu form vào session
+                request.session['user_data'] = cleaned
+                request.session['otp_phone'] = raw_phone
+                request.session['otp_phone_norm'] = norm_phone
+                
                 # 🔒 Kiểm tra OtpGuard trước khi gửi OTP
                 guard, _ = OtpGuard.objects.get_or_create(phone=norm_phone)
                 if guard.is_locked():
+                    secs_left = guard.lock_seconds_left()
                     form.add_error(
                         "phone_number",
                         "Số điện thoại này đã nhập sai OTP quá nhiều lần. Vui lòng thử lại sau 24 giờ."
@@ -126,14 +151,10 @@ def user_form(request):
                         request,
                         "Số điện thoại đang bị tạm khóa do nhập sai OTP quá nhiều lần."
                     )
-                    return render(request, "userform/form.html", {'form': form})
+                    return redirect('verify_otp')
                 
-                
-                request.session['user_data'] = cleaned
-                
+                # 🔓 không bị khóa -> gửi OTP bình thường
                 otp = generate_otp() 
-                request.session['otp_phone'] = raw_phone
-                request.session['otp_phone_norm'] = norm_phone
                 
                 # ok = send_otp(form.cleaned_data['phone_number'], otp)
                 ok = True
@@ -149,6 +170,7 @@ def user_form(request):
                     for k in ('otp', 'otp_sent_at'):
                         request.session.pop(k, None)
                     return render(request, 'userform/form.html', {'form': form})
+                
             except Exception as e:
                 logger.error(f"Error in user_form view: {str(e)}")
                 messages.error(request, "Có lỗi hệ thống. Vui lòng thử lại sau ít phút.")
@@ -166,6 +188,20 @@ def verify_otp(request):
     # Tính còn bao nhiêu giây cooldown (để hiển thị và disable nút)
     remaining = seconds_remaining(request.session)
     
+    raw_phone = request.session.get('otp_phone') or ""
+    norm_phone = normalize_phone(raw_phone) if raw_phone else ""
+    guard = None
+    locked = False
+    locked_secs = 0
+    locked_human = ""
+    
+    if norm_phone:
+        guard, _ = OtpGuard.objects.get_or_create(phone=norm_phone)
+        if guard.is_locked():
+            locked = True
+            locked_secs = guard.lock_seconds_left()
+            locked_human = humanize_seconds(locked_secs)
+    
     # Lấy phone chuẩn hoá từ session (nếu có)
     raw_phone = request.session.get('otp_phone') or ""
     norm_phone = normalize_phone(raw_phone) if raw_phone else ""
@@ -181,15 +217,30 @@ def verify_otp(request):
             
             # 🔒 Nếu bị khóa thì không cho gửi lại
             if guard and guard.is_locked():
-                msg = "Bạn đã nhập sai OTP quá nhiều lần. Số điện thoại này tạm bị khóa trong 24 giờ."
+                msg = (
+                    "Bạn đã nhập sai OTP quá nhiều lần. "
+                    f"Số điện thoại này đang bị khóa, còn khoảng {locked_human} nữa mới có thể đăng ký lại."
+                )
+                
                 if is_ajax:
-                    return JsonResponse({'ok': False, 'remaining': remaining, 'locked': True, 'message': msg})
+                    return JsonResponse({
+                        'ok': False, 
+                        'remaining': remaining, 
+                        'locked': True,
+                        'locked_seconds': locked_secs,
+                        'locked_human': locked_human, 
+                        'message': msg,
+                        })
+                    
                 messages.error(request, msg)
                 masked_phone = mask_phone(raw_phone)
                 return render(request, 'userform/otp.html', {
                     'form': OTPForm(),
                     'remaining': remaining,
                     'masked_phone': masked_phone,
+                    'locked': locked,
+                    'locked_seconds': locked_secs,
+                    'locked_human': locked_human,
                 })
                 
             if remaining > 0:
@@ -323,12 +374,17 @@ def verify_otp(request):
                     remaining_tries = max(0, 5 - guard.fail_count)
                     
                     if guard.is_locked() or remaining_tries == 0:
-                        msg = "Mã OTP không đúng. Số điện thoại này đã bị khóa 24 giờ do nhập sai quá nhiều lần."
+                        locked = True
+                        locked_secs = guard.lock_seconds_left()
+                        locked_human = humanize_seconds(locked_secs)
+                        msg = (
+                            "Mã OTP không đúng. Số điện thoại này đã bị khóa do nhập sai quá nhiều lần. "
+                            f"Vui lòng thử lại sau khoảng {locked_human}."
+                        )
                     else:
                         msg = f"Mã OTP không đúng. Bạn còn {remaining_tries} lần thử trước khi bị khóa 24 giờ."
                         
                     messages.error(request, msg)
-
 
         remaining = seconds_remaining(request.session)
         masked_phone = mask_phone(request.session.get('otp_phone'))
@@ -336,6 +392,9 @@ def verify_otp(request):
             'form': form,
             'remaining': remaining,
             'masked_phone': masked_phone,
+            'locked': locked,
+            'locked_seconds': locked_secs,
+            'locked_human': locked_human,
         })
 
     # GET: render trang OTP
@@ -344,6 +403,9 @@ def verify_otp(request):
         'form': OTPForm(),
         'remaining': remaining,
         'masked_phone': masked_phone,
+        'locked': locked,
+        'locked_seconds': locked_secs,
+        'locked_human': locked_human,
     })            
 
 def privacy_policy(request):

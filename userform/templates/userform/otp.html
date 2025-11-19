@@ -28,28 +28,37 @@
             {% endfor %}
             </div>
         {% endif %}
+        {% if locked %}
+        <div class="alert alert-danger">
+            Số điện thoại của bạn đã bị tạm khóa do nhập sai mã OTP quá nhiều lần.<br>
+            Thời gian còn lại trước khi có thể đăng ký lại: <strong>{{ locked_human }}</strong>.
+        </div>
+        {% endif %}
 
         <form method="post" class="mb-2" id="otp-form">
             {% csrf_token %}
-            <div class="otp-input mb-3">
-            {% bootstrap_field form.otp show_label=False placeholder="Nhập mã OTP" %}
-            </div>
+            <fieldset {% if locked %}disabled{% endif %}>
+            <!-- input OTP, nút Gửi lại, v.v. -->
+                <div class="otp-input mb-3">
+                {% bootstrap_field form.otp show_label=False placeholder="Nhập mã OTP" %}
+                </div>
 
-            <div class="actions mb-1">
-                <button type="submit" class="btn btn-primary">Xác nhận OTP</button>
+                <div class="actions mb-1">
+                    <button type="submit" class="btn btn-primary">Xác nhận OTP</button>
 
-                <!-- Nút gửi lại (POST cùng form, action=resend) -->
-                <button type="submit"
-                    name="action" value="resend"
-                    id="btn-resend"
-                    class="btn btn-outline-secondary"
-                    {% if remaining and remaining > 0 %}disabled{% endif %}>
-                        <span id="resend-label">Gửi lại</span>
-                        <span id="countdown-wrap" class="ms-1 text-muted">
-                            ( <span id="countdown">{{ remaining|default:0 }}</span>s )
-                        </span>
-                </button>
-            </div>
+                    <!-- Nút gửi lại (POST cùng form, action=resend) -->
+                    <button type="submit"
+                        name="action" value="resend"
+                        id="btn-resend"
+                        class="btn btn-outline-secondary"
+                        {% if remaining and remaining > 0 %}disabled{% endif %}>
+                            <span id="resend-label">Gửi lại</span>
+                            <span id="countdown-wrap" class="ms-1 text-muted">
+                                ( <span id="countdown">{{ remaining|default:0 }}</span>s )
+                            </span>
+                    </button>
+                </div>
+            </fieldset>
         </form>
 
         <p class="text-center text-muted small mb-0">

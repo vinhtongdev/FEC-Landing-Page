@@ -41,7 +41,13 @@ class OtpGuard(models.Model):
         self.locked_until = None
         self.save(update_fields=['fail_count', 'locked_until', 'updated_at'])
 
-        
+    def lock_seconds_left(self): 
+        """Số giây còn lại đang bị khóa (0 nếu hết khóa hoặc không khóa)."""
+        if not self.locked_until:
+            return 0
+        delta = self.locked_until - timezone.now()
+        sec = int(delta.total_seconds())
+        return sec if sec > 0 else 0       
 
 class CustomerInfo(models.Model):
     class Meta:
