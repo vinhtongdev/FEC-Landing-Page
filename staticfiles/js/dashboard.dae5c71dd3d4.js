@@ -3,10 +3,8 @@ function urlBase64ToUint8Array(base64String) {
 	const base64 = (base64String + padding)
 		.replace(/-/g, "+")
 		.replace(/_/g, "/");
-
-	const rawData = atob(base64);
+	const rawData = window.atob(base64);
 	const outputArray = new Uint8Array(rawData.length);
-
 	for (let i = 0; i < rawData.length; ++i) {
 		outputArray[i] = rawData.charCodeAt(i);
 	}
@@ -125,31 +123,48 @@ document.addEventListener("DOMContentLoaded", () => {
 			});
 	}
 	function subscribePush(reg) {
-		const appServerKey = urlBase64ToUint8Array(window.WEBPUSH_PUBLIC_KEY);
-		return reg.pushManager
+		if (!("pushManager" in reg)) {
+			console.warn("PushManager not supported");
+			return;
+		}
+
+		const vapidPublicKey = window.WEBPUSH_PUBLIC_KEY; // set từ template
+		if (!vapidPublicKey) {
+			console.warn("Missing WEBPUSH public key");
+			return;
+		}
+
+		const appServerKey = urlBase64ToUint8Array(vapidPublicKey);
+
+		reg.pushManager
 			.getSubscription()
 			.then((sub) => {
 				if (sub) {
 					console.log("Already subscribed to push");
+					// Optionally gửi lên server để đảm bảo
+					sendSubscriptionToServer(sub);
 					return sub;
 				}
+
 				return reg.pushManager.subscribe({
 					userVisibleOnly: true,
 					applicationServerKey: appServerKey,
 				});
 			})
 			.then((sub) => {
+				if (!sub) return;
 				console.log("Push subscription:", sub);
-				return sendSubscriptionToServer(sub);
+				sendSubscriptionToServer(sub);
+			})
+			.catch((err) => {
+				console.error("Push subscription error:", err);
 			});
 	}
-
 	function sendSubscriptionToServer(sub) {
 		// sub là PushSubscription, có toJSON()
 		const data = sub.toJSON();
-		const url = window.PUSH_SUBSCRIBE_URL || "/dashboard/push/subscribe/";
 
-		fetch(url, {
+		fetch("/management/push/subscribe/", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

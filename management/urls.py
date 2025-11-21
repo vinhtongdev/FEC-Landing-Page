@@ -12,4 +12,5 @@ urlpatterns = [
     path("customer/<int:pk>/edit/", views.customer_edit, name="customer_edit"),
     path("customer/<int:pk>/save/", views.customer_save_changes, name="customer_save_changes"),
     path("approval/<int:approval_id>/verify/", views.approval_verify_and_apply, name="approval_verify"),
+    path("push/subscribe/", views.push_subscribe, name="push_subscribe"),
 ]

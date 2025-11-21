@@ -1,3 +1,18 @@
+function urlBase64ToUint8Array(base64String) {
+	const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+	const base64 = (base64String + padding)
+		.replace(/-/g, "+")
+		.replace(/_/g, "/");
+
+	const rawData = atob(base64);
+	const outputArray = new Uint8Array(rawData.length);
+
+	for (let i = 0; i < rawData.length; ++i) {
+		outputArray[i] = rawData.charCodeAt(i);
+	}
+	return outputArray;
+}
+
 // Luôn có toast ở phạm vi global
 (function () {
 	// Nếu đã có thì không ghi đè
@@ -87,6 +102,70 @@ document.addEventListener("DOMContentLoaded", () => {
 				break;
 		}
 	};
+
+	// ==== PUSH + SERVICE WORKER ====
+	if ("serviceWorker" in navigator && "PushManager" in window) {
+		navigator.serviceWorker
+			.register("/sw.js")
+			.then((reg) => {
+				console.log("Service worker registered.", reg);
+				// xin permission nếu chưa
+				if (Notification.permission === "default") {
+					// có thể đợi user click nút
+					Notification.requestPermission();
+				}
+
+				// nếu đã cho phép, tiến hành subscribe push
+				if (Notification.permission === "granted") {
+					subscribePush(reg);
+				}
+			})
+			.catch((error) => {
+				console.error("Service worker registration failed:", error);
+			});
+	}
+	function subscribePush(reg) {
+		const appServerKey = urlBase64ToUint8Array(window.WEBPUSH_PUBLIC_KEY);
+		return reg.pushManager
+			.getSubscription()
+			.then((sub) => {
+				if (sub) {
+					console.log("Already subscribed to push");
+					return sub;
+				}
+				return reg.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: appServerKey,
+				});
+			})
+			.then((sub) => {
+				console.log("Push subscription:", sub);
+				return sendSubscriptionToServer(sub);
+			});
+	}
+
+	function sendSubscriptionToServer(sub) {
+		// sub là PushSubscription, có toJSON()
+		const data = sub.toJSON();
+		const url = window.PUSH_SUBSCRIBE_URL || "/dashboard/push/subscribe/";
+
+		fetch(url, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-CSRFToken": getCsrfToken(), // dùng function hiện có của bạn
+			},
+			body: JSON.stringify(data),
+			credentials: "same-origin",
+		})
+			.then((r) => r.json())
+			.then((resp) => {
+				console.log("Server saved subscription:", resp);
+			})
+			.catch((err) => {
+				console.error("Error sending subscription to server", err);
+			});
+	}
 });
 
 // Chèn dòng mới vào bảng thay vì reload
@@ -326,4 +405,17 @@ function updateOrPrependRow(m) {
 		tr = buildRowStyled(m);
 		tbody.prepend(tr);
 	}
+}
+
+function getCookie(name) {
+	const value = `; ${document.cookie}`;
+	const parts = value.split(`; ${name}=`);
+	if (parts.length === 2) {
+		return parts.pop().split(";").shift();
+	}
+	return null;
+}
+
+function getCsrfToken() {
+	return getCookie("csrftoken"); // Django đặt cookie tên 'csrftoken'
 }

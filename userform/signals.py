@@ -5,6 +5,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .models import CustomerInfo
 from django.urls import reverse
+from management.utils import send_push_to_managers
 
 @receiver(post_save, sender=CustomerInfo)
 def customer_created_notify(sender, instance, created, **kwargs):
@@ -39,3 +40,20 @@ def customer_created_notify(sender, instance, created, **kwargs):
         "dashboard_customers",
         {"type": "add_message", "data": payload}
     )
+    
+    # 🔔 WEB PUSH CHO MANAGER
+    try:
+        detail_url = reverse("management:customer_detail", args=[instance.id])
+    except Exception as e:
+        # fallback nếu chưa có view chi tiết
+        detail_url = reverse("management:dashboard")
+    
+    full_name = getattr(instance, "full_name", "") or ""
+    phone = getattr(instance, "phone_number", "") or ""
+
+    push_payload = {
+        "title": "Khách hàng mới đăng ký",
+        "body": f"{full_name} - {phone}",
+        "url": detail_url,
+    }
+    send_push_to_managers(push_payload)

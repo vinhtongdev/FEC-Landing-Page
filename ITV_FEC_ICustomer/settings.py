@@ -171,12 +171,6 @@ LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'management:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
-# AWS S3 Storage
-# AWS_ACCESS_KEY_ID = 'your_key'
-# AWS_SECRET_ACCESS_KEY = 'your_secret'
-# AWS_STORAGE_BUCKET_NAME = 'your-bucket'
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -238,3 +232,8 @@ CACHES = {
     }
 }
 
+WEBPUSH_VAPID_PUBLIC_KEY = os.environ.get("WEBPUSH_VAPID_PUBLIC_KEY")
+WEBPUSH_VAPID_PRIVATE_KEY = os.environ.get("WEBPUSH_VAPID_PRIVATE_KEY")
+WEBPUSH_VAPID_CLAIMS= {
+    "sub": "mailto:vinhtong.dev@gmail.com"
+} 

@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView, DetailView
 from django.shortcuts import render
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.db.models import Q
 from django.db import transaction
 from management.utils import is_manager
@@ -21,7 +21,11 @@ from .forms import CustomerQuickEditForm, FilterForm
 from userform.models import CustomerInfo
 import csv
 from django.utils.encoding import smart_str
-from .models import EditApproval
+from .models import EditApproval, PushSubscription
+from django.conf import settings
+import json
+from .utils import send_push_to_managers
+from django.views.decorators.csrf import csrf_exempt
 
 staff_only = [login_required, user_passes_test(lambda u: u.is_staff)]
 
@@ -96,6 +100,8 @@ class DashboardListView(ListView):
         qd.pop('page', None)
         ctx['querystring'] = qd.urlencode()
         ctx['is_manager'] = is_manager(self.request.user)
+        
+        ctx['WEBPUSH_PUBLIC_KEY'] = settings.WEBPUSH_VAPID_PUBLIC_KEY
         
         # Trả về ctx (nay đã chứa rows, page_obj, form, và querystring) để Django render ra file HTML.
         return ctx
@@ -283,7 +289,79 @@ def approval_verify_and_apply(request, approval_id):
         return
     async_to_sync(layer.group_send)("update_customers", {"type":"update_customer", "data":{"result_update": "success", "customer_id": customer.id, "kind": "update_customer"}})
     
+    # bắn thêm web push (cho manager không mở tab)
+    payload_push = {
+        "title": "Yêu cầu phê duyệt thông tin",
+        "body": f"KH: {approval.customer.full_name} - mã {approval.code}",
+        "url": reverse("management:dashboard"),  # hoặc trang chi tiết
+    }
+    send_push_to_managers(payload_push)
+    
     return JsonResponse({
         "ok": True,
         "message": "Đã lưu thay đổi thành công!"
     })
+
+@csrf_exempt           # tạm bỏ CSRF cho dễ debug, sau này siết lại cũng được
+@login_required
+@require_POST
+def push_subscribe(request):
+    try:
+        # request.body là bytes → decode rồi json.loads
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception as e:
+        return JsonResponse(
+            {"ok": False, "message": f"Invalid JSON: {e}"},
+            status=400,
+        )
+
+    endpoint = data.get("endpoint")
+    keys = data.get("keys") or {}
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+
+    if not endpoint or not p256dh or not auth:
+        return JsonResponse(
+            {"ok": False, "message": "Missing subscription data"},
+            status=400,
+        )
+
+    sub, created = PushSubscription.objects.update_or_create(
+        user=request.user,
+        endpoint=endpoint,
+        defaults={
+            "p256dh": p256dh,
+            "auth": auth,
+            "is_active": True,
+        },
+    )
+
+    return JsonResponse({"ok": True, "created": created})
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "message": "Unauthorized"}, status=401)
+    
+    try:
+        body = request.body.decode("utf-8")
+        data = json.loads(body)
+    except Exception:
+        return JsonResponse({"ok": False, "message": "Invalid JSON"}, status=400)
+    
+    endpoint = data.get("endpoint")
+    keys = data.get("keys", {})
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+    
+    if not (endpoint and p256dh and auth):
+        return JsonResponse({"ok": False, "message": "Missing subscription data"}, status=400)
+
+    sub, created = PushSubscription.objects.update_or_create(
+        user=request.user,
+        endpoint=endpoint,
+        defaults={
+            "p256dh": p256dh,
+            "auth": auth,
+            "is_active": True,
+        },
+    )
+
+    return JsonResponse({"ok": True, "created": created})

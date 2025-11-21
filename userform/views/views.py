@@ -30,6 +30,7 @@ from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.utils.timesince import timesince
+from management.utils import send_push_to_managers
 
 
 logger = logging.getLogger(__name__)
@@ -378,8 +379,7 @@ def verify_otp(request):
                         locked_secs = guard.lock_seconds_left()
                         locked_human = humanize_seconds(locked_secs)
                         msg = (
-                            "Mã OTP không đúng. Số điện thoại này đã bị khóa do nhập sai quá nhiều lần. "
-                            f"Vui lòng thử lại sau khoảng {locked_human}."
+                            "Số điện thoại này đã bị khóa do nhập sai quá nhiều lần. "
                         )
                     else:
                         msg = f"Mã OTP không đúng. Bạn còn {remaining_tries} lần thử trước khi bị khóa 24 giờ."
@@ -606,6 +606,20 @@ def confirm_and_sign(request, customer_id):
                         "dashboard_customers",
                         {"type": "add_message", "data": payload}
                     ))
+                    
+                # 🔔 WEB PUSH CHO MANAGER KHI KHÁCH KÝ XONG
+                try:
+                    detail_url = reverse("management:customer_detail", args=[customer.id])
+                except Exception:
+                    detail_url = reverse("management:dashboard")
+                    
+                push_payload = {
+                    "title": "Khách hàng đã ký xác nhận",
+                    "body": f"{customer.full_name or ''} - {customer.phone_number or ''}",
+                    "url": detail_url,
+                }
+                
+                send_push_to_managers(push_payload)
 
                 messages.success(request, 'Đã ký thành công và lưu văn bản xác nhận. \n IT-Com Vietnam đã nhận được thông tin đăng ký của quý khách. Tư vấn viên sẽ sớm liên hệ lại trong thời gian sớm nhất.')
                 return redirect('sign_done', customer_id=customer.id)

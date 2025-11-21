@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
-
+from django.views.generic import TemplateView
 from django.contrib import admin
 from django.urls import path, include
 from userform.views.views import user_form, verify_otp, consent_info
@@ -14,6 +14,7 @@ urlpatterns = [
     path('dashboard/', include(('management.urls', 'management'), namespace='management')),
     path("reports/", include("report.urls", namespace="report")),
     path('consent/', consent_info, name='consent_info'),
+    path('sw.js', TemplateView.as_view(template_name="sw.js", content_type='application/javascript'), name='service_worker'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
